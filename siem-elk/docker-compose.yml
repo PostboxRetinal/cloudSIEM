@@ -1,0 +1,461 @@
+# =============================================================================
+# SIEM Platform — Elastic Stack (ELK) — 3-Node Cluster
+# Proyecto 8: Plataforma de análisis de logs y seguridad
+# =============================================================================
+# Componentes:
+#   - Elasticsearch: 3 nodos (es01, es02, es03)
+#   - Logstash: pipeline de enriquecimiento
+#   - Kibana: dashboards + SIEM
+#   - Filebeat: agente de ingesta de logs
+#   - Metricbeat: métricas del sistema
+#
+# Uso:
+#   1. Crear el archivo .env con las variables de entorno (ver abajo)
+#   2. docker compose up -d
+#   3. Esperar ~60s a que el cluster esté en verde
+#   4. Ejecutar el script de setup ILM: ./setup/init-ilm.sh
+#
+# Variables requeridas en .env:
+#   ELASTIC_PASSWORD=changeme_secure_password
+#   KIBANA_PASSWORD=changeme_kibana_password
+#   STACK_VERSION=8.13.0
+#   CLUSTER_NAME=siem-cluster
+#   MEM_LIMIT=1073741824   # 1GB por nodo (ajustar según RAM disponible)
+# =============================================================================
+
+version: "3.8"
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  es01-data:
+    driver: local
+  es02-data:
+    driver: local
+  es03-data:
+    driver: local
+  kibana-data:
+    driver: local
+  logstash-data:
+    driver: local
+  certs:
+    driver: local
+
+# ─── Networks ────────────────────────────────────────────────────────────────
+networks:
+  elastic:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+# ─── Services ────────────────────────────────────────────────────────────────
+services:
+
+  # ─── Setup: genera certificados TLS y bootstrap del cluster ───────────────
+  setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: siem-setup
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+    user: "0"
+    networks:
+      - elastic
+    command: >
+      bash -c '
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Generando CA..."
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Generando certificados de nodos..."
+          echo -ne \
+            "instances:\n"\
+            "  - name: es01\n"\
+            "    dns:\n"\
+            "      - es01\n"\
+            "      - localhost\n"\
+            "    ip:\n"\
+            "      - 127.0.0.1\n"\
+            "  - name: es02\n"\
+            "    dns:\n"\
+            "      - es02\n"\
+            "      - localhost\n"\
+            "    ip:\n"\
+            "      - 127.0.0.1\n"\
+            "  - name: es03\n"\
+            "    dns:\n"\
+            "      - es03\n"\
+            "      - localhost\n"\
+            "    ip:\n"\
+            "      - 127.0.0.1\n"\
+            "  - name: kibana\n"\
+            "    dns:\n"\
+            "      - kibana\n"\
+            "      - localhost\n"\
+            "    ip:\n"\
+            "      - 127.0.0.1\n"\
+            "  - name: logstash\n"\
+            "    dns:\n"\
+            "      - logstash\n"\
+            "      - localhost\n"\
+            > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip \
+            --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt \
+            --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        echo "Ajustando permisos de certificados...";
+        chown -R root:root config/certs;
+        chmod -R 644 config/certs;
+        find config/certs -type d -exec chmod 755 {} \;;
+        echo "Setup completado.";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+
+  # ─── Elasticsearch Nodo 1 (master eligible + data) ────────────────────────
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: siem-es01
+    depends_on:
+      setup:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "9200:9200"   # REST API (acceso externo)
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - es01-data:/usr/share/elasticsearch/data
+    environment:
+      - node.name=es01
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es02,es03
+      - node.roles=master,data,ingest
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es01/es01.key
+      - xpack.security.http.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es01/es01.key
+      - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=basic
+      - xpack.ml.enabled=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # ─── Elasticsearch Nodo 2 (master eligible + data) ────────────────────────
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: siem-es02
+    depends_on:
+      es01:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.11
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - es02-data:/usr/share/elasticsearch/data
+    environment:
+      - node.name=es02
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01,es03
+      - node.roles=master,data,ingest
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es02/es02.key
+      - xpack.security.http.ssl.certificate=certs/es02/es02.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es02/es02.key
+      - xpack.security.transport.ssl.certificate=certs/es02/es02.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=basic
+      - xpack.ml.enabled=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # ─── Elasticsearch Nodo 3 (master eligible + data) ────────────────────────
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: siem-es03
+    depends_on:
+      es02:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.12
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+      - es03-data:/usr/share/elasticsearch/data
+    environment:
+      - node.name=es03
+      - cluster.name=${CLUSTER_NAME}
+      - cluster.initial_master_nodes=es01,es02,es03
+      - discovery.seed_hosts=es01,es02
+      - node.roles=master,data,ingest
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es03/es03.key
+      - xpack.security.http.ssl.certificate=certs/es03/es03.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es03/es03.key
+      - xpack.security.transport.ssl.certificate=certs/es03/es03.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=basic
+      - xpack.ml.enabled=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # ─── Kibana ───────────────────────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: siem-kibana
+    depends_on:
+      es01:
+        condition: service_healthy
+      es02:
+        condition: service_healthy
+      es03:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.20
+    ports:
+      - "5601:5601"
+    volumes:
+      - certs:/usr/share/kibana/config/certs
+      - kibana-data:/usr/share/kibana/data
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-changeme_32char_key_minimum_here}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-changeme_32char_key_minimum_here}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-changeme_32char_key_minimum_here}
+    mem_limit: ${MEM_LIMIT}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # ─── Logstash ─────────────────────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    container_name: siem-logstash
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.30
+    ports:
+      - "5044:5044"    # Beats input
+      - "5514:5514/udp" # Syslog UDP
+      - "5514:5514/tcp" # Syslog TCP
+      - "9600:9600"    # Logstash monitoring API
+    volumes:
+      - certs:/usr/share/logstash/config/certs
+      - logstash-data:/usr/share/logstash/data
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/patterns:/usr/share/logstash/patterns:ro
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    mem_limit: ${MEM_LIMIT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9600 | grep -q 'green'"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  # ─── Filebeat ─────────────────────────────────────────────────────────────
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    container_name: siem-filebeat
+    user: root
+    depends_on:
+      logstash:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - certs:/usr/share/filebeat/certs
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log:/var/log/host:ro                   # logs del host
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - LOGSTASH_HOST=logstash:5044
+      - KIBANA_HOST=http://kibana:5601
+    command: filebeat -e --strict.perms=false
+    cap_add:
+      - DAC_READ_SEARCH
+
+  # ─── Metricbeat ───────────────────────────────────────────────────────────
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+    container_name: siem-metricbeat
+    user: root
+    depends_on:
+      es01:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - certs:/usr/share/metricbeat/certs
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+    command: metricbeat -e --strict.perms=false -system.hostfs=/hostfs
+
+  # ─── ILM Setup Job (corre una vez al inicio) ──────────────────────────────
+  ilm-setup:
+    image: curlimages/curl:latest
+    container_name: siem-ilm-setup
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - certs:/certs
+      - ./setup:/setup:ro
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    entrypoint: >
+      sh -c '
+        echo "Esperando que el cluster esté listo...";
+        sleep 15;
+        echo "=== Configurando contraseña de kibana_system ===";
+        curl -s -X POST --cacert /certs/ca/ca.crt \
+          -u "elastic:$$ELASTIC_PASSWORD" \
+          "https://es01:9200/_security/user/kibana_system/_password" \
+          -H "Content-Type: application/json" \
+          -d "{\"password\":\"$$ELASTIC_PASSWORD\"}";
+
+        echo "";
+        echo "=== Creando ILM policy: siem-logs-policy (30 días) ===";
+        curl -s -X PUT --cacert /certs/ca/ca.crt \
+          -u "elastic:$$ELASTIC_PASSWORD" \
+          "https://es01:9200/_ilm/policy/siem-logs-policy" \
+          -H "Content-Type: application/json" \
+          -d @/setup/ilm-policy.json;
+
+        echo "";
+        echo "=== Creando component templates ===";
+        curl -s -X PUT --cacert /certs/ca/ca.crt \
+          -u "elastic:$$ELASTIC_PASSWORD" \
+          "https://es01:9200/_component_template/siem-settings" \
+          -H "Content-Type: application/json" \
+          -d @/setup/component-settings.json;
+
+        echo "";
+        echo "=== Creando index templates ===";
+        for tpl in siem-syslog siem-nginx siem-auth siem-k8s siem-errors; do
+          curl -s -X PUT --cacert /certs/ca/ca.crt \
+            -u "elastic:$$ELASTIC_PASSWORD" \
+            "https://es01:9200/_index_template/$$tpl" \
+            -H "Content-Type: application/json" \
+            -d @/setup/template-$$tpl.json;
+          echo "";
+        done;
+
+        echo "=== ILM y templates configurados correctamente ===";
+        curl -s --cacert /certs/ca/ca.crt \
+          -u "elastic:$$ELASTIC_PASSWORD" \
+          "https://es01:9200/_cluster/health?pretty";
+      '
+    restart: "no"
