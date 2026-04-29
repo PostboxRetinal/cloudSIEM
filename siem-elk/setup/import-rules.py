@@ -32,7 +32,7 @@ except ImportError:
 KIBANA_URL      = os.getenv("KIBANA_HOST",     "http://localhost:5601")
 ES_URL          = os.getenv("ELASTIC_HOSTS",   "https://localhost:9200")
 ELASTIC_USER    = os.getenv("ELASTIC_USER",    "elastic")
-ELASTIC_PASS    = os.getenv("ELASTIC_PASSWORD","elastic*")
+ELASTIC_PASS    = os.getenv("ELASTIC_PASSWORD","SiemElastic2026!")
 CACERT          = os.getenv("CACERT",          "./setup/certs/ca/ca.crt")
 RULES_DIR       = Path("../rules")
 

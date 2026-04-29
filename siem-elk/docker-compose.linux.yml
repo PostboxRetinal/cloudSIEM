@@ -1,0 +1,72 @@
+services:
+  kibana:
+    volumes:
+      - type: bind
+        source: ./kibana/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+        bind:
+          selinux: z
+
+  logstash:
+    volumes:
+      - type: bind
+        source: ./logstash/config/logstash.yml
+        target: /usr/share/logstash/config/logstash.yml
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: ./logstash/pipeline
+        target: /usr/share/logstash/pipeline
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: ./logstash/patterns
+        target: /usr/share/logstash/patterns
+        read_only: true
+        bind:
+          selinux: z
+
+  filebeat:
+    volumes:
+      - type: bind
+        source: ./filebeat/filebeat.yml
+        target: /usr/share/filebeat/filebeat.yml
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: ./logs
+        target: /var/log
+        read_only: true
+        bind:
+          selinux: z
+
+  metricbeat:
+    volumes:
+      - type: bind
+        source: ./metricbeat/metricbeat.yml
+        target: /usr/share/metricbeat/metricbeat.yml
+        read_only: true
+        bind:
+          selinux: z
+
+  ilm-setup:
+    volumes:
+      - type: bind
+        source: ./setup
+        target: /setup
+        read_only: true
+        bind:
+          selinux: z
+
+  rules-import:
+    volumes:
+      - type: bind
+        source: ./rules
+        target: /rules
+        read_only: true
+        bind:
+          selinux: z

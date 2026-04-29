@@ -5,9 +5,8 @@
 # =============================================================================
 # Uso:
 #   1. Crear archivo .env con las variables requeridas
-#   2. Asegurarse de usar la versión en el gist compartido
-#   3. Ejecutar `docker compose up --build --no-cache` para recompilar evitando cache
-#   4. Esperar ~90s y verificar: bash setup/verify-cluster.sh
+#   2. Ejecutar `./up.sh` o `./up.ps1` con `up` o `down`
+#   3. Esperar ~90s y verificar: bash setup/verify-cluster.sh
 # =============================================================================
 
 # ─── Volumes ─────────────────────────────────────────────────────────────────
@@ -310,12 +309,19 @@ services:
     depends_on:
       es01:
         condition: service_healthy
+      kibana:
+        condition: service_healthy
     networks:
       - elastic
     volumes:
       - certs:/usr/share/filebeat/certs:ro
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - type: bind
+        source: ${HOST_SOCKET_PATH:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        read_only: true
+        bind:
+          selinux: z
       - ./logs/:/var/log:ro
     environment:
       - ELASTIC_USER=elastic
@@ -342,12 +348,19 @@ services:
     depends_on:
       es01:
         condition: service_healthy
+      kibana:
+        condition: service_healthy
     networks:
       - elastic
     volumes:
       - certs:/usr/share/metricbeat/certs
       - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - type: bind
+        source: ${HOST_SOCKET_PATH:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        read_only: true
+        bind:
+          selinux: z
     environment:
       - ELASTIC_USER=${ELASTIC_USER}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
@@ -358,6 +371,7 @@ services:
   ilm-setup:
     image: curlimages/curl:latest
     container_name: siem-ilm-setup
+    user: "0"
     depends_on:
       es01:
         condition: service_healthy
@@ -433,6 +447,7 @@ services:
   rules-import:
     image: curlimages/curl:latest
     container_name: siem-rules-import
+    user: "0"
     depends_on:
       kibana:
         condition: service_healthy
