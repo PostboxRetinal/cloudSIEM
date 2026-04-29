@@ -43,6 +43,9 @@ output.elasticsearch:
   ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
   index: "metricbeat-%{[agent.version]}-%{+yyyy.MM.dd}"
 
+setup.template.name: "metricbeat-%{[agent.version]}"
+setup.template.pattern: "metricbeat-%{[agent.version]}-*"
+
 # ================================== Proccessors ===============================
 processors:
   - add_host_metadata: ~
@@ -59,6 +62,4 @@ processors:
 setup.dashboards.enabled: true
 
 setup.kibana:
-  host: "https://kibana:5601"
-  protocol: "https"
-  ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  host: "http://kibana:5601"
