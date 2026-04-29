@@ -34,7 +34,7 @@ ES_URL          = os.getenv("ELASTIC_HOSTS",   "https://localhost:9200")
 ELASTIC_USER    = os.getenv("ELASTIC_USER",    "elastic")
 ELASTIC_PASS    = os.getenv("ELASTIC_PASSWORD","SiemElastic2024!")
 CACERT          = os.getenv("CACERT",          "./setup/certs/ca/ca.crt")
-RULES_DIR       = Path("./rules")
+RULES_DIR       = Path("../rules")
 
 # Colores
 G = "\033[92m"; R = "\033[91m"; Y = "\033[93m"
@@ -55,10 +55,30 @@ def es_session():
     s.verify = CACERT
     return s
 
+# ─── Esperar a que Kibana esté disponible ─────────────────────────────────
+def wait_for_kibana(session, kibana_url, timeout_seconds=180):
+    print(f"\n{W}=== Esperando a que Kibana esté disponible en {kibana_url} ==={X}")
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            response = session.get(kibana_url, timeout=10)
+            if response.status_code in (200, 302):
+                print(f"  {G}Kibana disponible{X}")
+                return True
+        except requests.exceptions.RequestException:
+            pass
+        print("  esperando...", end="\r", flush=True)
+        time.sleep(5)
+    print(f"\n{R}ERROR: Kibana no respondió en {timeout_seconds} segundos{X}")
+    return False
+
 # ─── IMPORTAR REGLAS ──────────────────────────────────────────────────────────
 def import_rules():
     print(f"\n{W}=== Importando reglas a Kibana SIEM ==={X}")
     session = kibana_session()
+
+    if not wait_for_kibana(session, KIBANA_URL):
+        sys.exit(1)
 
     rule_files = sorted(RULES_DIR.glob("*.json"))
     if not rule_files:
@@ -345,6 +365,13 @@ def main():
 
     print(f"{W}SIEM Rules Manager{X} — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"Kibana: {args.kibana} | ES: {args.es}")
+
+    global KIBANA_URL, ES_URL, ELASTIC_USER, ELASTIC_PASS, CACERT
+    KIBANA_URL = args.kibana
+    ES_URL       = args.es
+    ELASTIC_USER = args.user
+    ELASTIC_PASS = args.password
+    CACERT       = args.cacert
 
     if args.action == "import":
         import_rules()

@@ -283,6 +283,8 @@ services:
         condition: service_healthy
       es03:
         condition: service_healthy
+      ilm-setup:
+        condition: service_completed_successfully
     networks:
       elastic:
         ipv4_address: 172.20.0.20
@@ -296,7 +298,7 @@ services:
       - SERVERNAME=kibana
       - ELASTICSEARCH_HOSTS=https://es01:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=SiemElastic2024!
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
@@ -364,11 +366,18 @@ services:
       - ./logs/:/var/log:ro
     environment:
       - ELASTIC_USER=elastic
-      - ELASTIC_PASSWORD=SiemElastic2024!
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
       - LOGSTASH_HOST=logstash:5044
       - KIBANA_HOST=http://kibana:5601
-    command: ["filebeat", "-e", "--strict.perms=false", "-E", "output.elasticsearch.ssl.verification_mode=none"]
+    command:
+      [
+        "filebeat",
+        "-e",
+        "--strict.perms=false",
+        "-E",
+        "output.elasticsearch.ssl.verification_mode=none",
+      ]
     cap_add:
       - DAC_READ_SEARCH
 
@@ -399,7 +408,9 @@ services:
     depends_on:
       es01:
         condition: service_healthy
-      kibana:
+      es02:
+        condition: service_healthy
+      es03:
         condition: service_healthy
     networks:
       - elastic
@@ -408,8 +419,10 @@ services:
       - ./setup:/setup:ro
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD}
     entrypoint: >
       sh -c '
+        set -e;
         echo "Esperando que el cluster esté listo...";
         sleep 15;
 
@@ -418,7 +431,7 @@ services:
           -u "elastic:$$ELASTIC_PASSWORD" \
           "https://es01:9200/_security/user/kibana_system/_password" \
           -H "Content-Type: application/json" \
-          -d "{\"password\":\"$$ELASTIC_PASSWORD\"}";
+          -d "{\"password\":\"$$KIBANA_PASSWORD\"}";
 
         echo "";
         echo "=== Creando ILM policy: siem-logs-policy (30 días) ===";
@@ -428,22 +441,31 @@ services:
           -H "Content-Type: application/json" \
           -d @/setup/ilm-policy.json;
 
-        echo "";
-        echo "=== Creando component templates ===";
-        curl -s -X PUT --cacert /certs/ca/ca.crt \
-          -u "elastic:$$ELASTIC_PASSWORD" \
-          "https://es01:9200/_component_template/siem-settings" \
-          -H "Content-Type: application/json" \
-          -d @/setup/component-settings.json;
+        if [ -f /setup/component-settings.json ]; then
+          echo "";
+          echo "=== Creando component templates ===";
+          curl -s -X PUT --cacert /certs/ca/ca.crt \
+            -u "elastic:$$ELASTIC_PASSWORD" \
+            "https://es01:9200/_component_template/siem-settings" \
+            -H "Content-Type: application/json" \
+            -d @/setup/component-settings.json;
+        else
+          echo "=== Omitiendo component template: /setup/component-settings.json no existe ===";
+        fi;
 
         echo "";
         echo "=== Creando index templates ===";
         for tpl in siem-syslog siem-nginx siem-auth siem-k8s siem-errors; do
-          curl -s -X PUT --cacert /certs/ca/ca.crt \
-            -u "elastic:$$ELASTIC_PASSWORD" \
-            "https://es01:9200/_index_template/$$tpl" \
-            -H "Content-Type: application/json" \
-            -d @/setup/template-$$tpl.json;
+          template_file="/setup/template-$$tpl.json";
+          if [ -f "$$template_file" ]; then
+            curl -s -X PUT --cacert /certs/ca/ca.crt \
+              -u "elastic:$$ELASTIC_PASSWORD" \
+              "https://es01:9200/_index_template/$$tpl" \
+              -H "Content-Type: application/json" \
+              -d @"$$template_file";
+          else
+            echo "Skipping missing index template: $$template_file";
+          fi;
           echo "";
         done;
 
@@ -451,5 +473,35 @@ services:
         curl -s --cacert /certs/ca/ca.crt \
           -u "elastic:$$ELASTIC_PASSWORD" \
           "https://es01:9200/_cluster/health?pretty";
+      '
+    restart: "no"
+
+  # ─── Importación automática de reglas Kibana ───────────────────────────────
+  rules-import:
+    image: python:3.12-slim
+    container_name: siem-rules-import
+    depends_on:
+      kibana:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.40
+    volumes:
+      - certs:/certs:ro
+      - ./setup:/setup:ro
+      - ./rules:/rules:ro
+    working_dir: /setup
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD}
+      - KIBANA_HOST=http://kibana:5601
+      - ELASTIC_HOSTS=https://es01:9200
+      - CACERT=/certs/ca/ca.crt
+    entrypoint: >
+      sh -c '
+        set -e;
+        python -m pip install --no-cache-dir requests;
+        python import-rules.py --action import --kibana "$${KIBANA_HOST}" --es "$${ELASTIC_HOSTS}" --user "$${ELASTIC_USER}" --password "$${ELASTIC_PASSWORD}" --cacert "$${CACERT}";
       '
     restart: "no"
