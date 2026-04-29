@@ -341,7 +341,7 @@ services:
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
-      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
     mem_limit: ${MEM_LIMIT}
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9600 | grep -q 'green'" ]
