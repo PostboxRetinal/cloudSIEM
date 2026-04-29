@@ -1,28 +1,15 @@
-# ── Kibana configuration ─────────────────────────────────────────────────────
 server.name: kibana
 server.host: "0.0.0.0"
 server.port: 5601
 
-# Elasticsearch connection
+# Conexión al cluster
 elasticsearch.hosts: ["https://es01:9200"]
 elasticsearch.username: "kibana_system"
 elasticsearch.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca/ca.crt"]
 elasticsearch.ssl.verificationMode: certificate
 
-# Security
-xpack.security.enabled: true
+# Configuración de flota e índices (necesario para el SIEM)
+xpack.fleet.outputs: [{id: fleet-default-output, name: default, type: elasticsearch, hosts: ["https://es01:9200"]}]
 
-# SIEM / Security Solution
-xpack.securitySolution.enabled: true
-xpack.securitySolution.enableExperimental: ["detectionEngineListsEnabled"]
-
-# Alerting
-xpack.alerting.enabled: true
-xpack.actions.enabled: true
-
-# Telemetry
-telemetry.enabled: false
-telemetry.optIn: false
-
-# Logging
-logging.root.level: warn
+# Evita que se llene de logs innecesarios
+logging.root.level: info

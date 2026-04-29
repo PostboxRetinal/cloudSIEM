@@ -1,7 +1,7 @@
 #!/bin/bash
 # ── Verificar estado del cluster ELK ─────────────────────────────────────────
 set -e
-source ../.env
+source ./.env
 
 CACERT="./certs/ca/ca.crt"
 ES_URL="https://localhost:9200"

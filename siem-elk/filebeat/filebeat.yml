@@ -224,35 +224,35 @@ filebeat.modules:
       var.paths: ["/var/log/nginx/error.log"]
 
 # ─── Output: Logstash (enriquecimiento y routing) ────────────────────────────
-output.logstash:
-  hosts:
-    - "${LOGSTASH_HOST:logstash:5044}"
-  worker:          2
-  bulk_max_size:   2048
-  compression_level: 3
-  # Si Logstash tiene TLS habilitado, descomentar:
-  # ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
-
-# ─── Output alternativo directo a Elasticsearch (sin Logstash) ───────────────
-# Descomentar y comentar el output.logstash si se quiere omitir Logstash
-# output.elasticsearch:
-#   hosts: ["${ELASTIC_HOSTS:https://es01:9200}"]
-#   username: "${ELASTIC_USER:elastic}"
-#   password: "${ELASTIC_PASSWORD}"
+# output.logstash:
+#   hosts:
+#     - "${LOGSTASH_HOST:logstash:5044}"
+#   worker:           2
+#   bulk_max_size:    2048
+#   compression_level: 3
 #   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
-#   indices:
-#     - index: "logs-nginx-%{+yyyy.MM.dd}"
-#       when.equals:
-#         event.dataset: "nginx.access"
-#     - index: "logs-auth-%{+yyyy.MM.dd}"
-#       when.equals:
-#         event.dataset: "system.auth"
-#     - index: "logs-syslog-%{+yyyy.MM.dd}"
-#       when.equals:
-#         event.dataset: "system.syslog"
-#     - index: "logs-k8s-%{+yyyy.MM.dd}"
-#       when.equals:
-#         event.dataset: "kubernetes.container"
+
+# ─── Output: Directo a Elasticsearch (HABILITADO) ────────────────────────────
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: "elastic"
+  password: "SiemElastic2024!"
+  # ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
+  ssl.verification_mode: "none"
+  # Agrupamos los logs por tipo para que sea más fácil verlos en Kibana
+  indices:
+    - index: "logs-nginx-%{+yyyy.MM.dd}"
+      when.equals:
+        event.dataset: "nginx.access"
+    - index: "logs-auth-%{+yyyy.MM.dd}"
+      when.equals:
+        event.dataset: "system.auth"
+    - index: "logs-syslog-%{+yyyy.MM.dd}"
+      when.equals:
+        event.dataset: "system.syslog"
+    - index: "logs-k8s-%{+yyyy.MM.dd}"
+      when.equals:
+        event.dataset: "kubernetes.container"
 
 # ─── Setup (Kibana dashboards + ILM) ─────────────────────────────────────────
 setup.kibana:
@@ -274,34 +274,34 @@ setup.template.pattern:       "filebeat-*"
 setup.template.overwrite:     false
 
 # ─── Procesadores globales ────────────────────────────────────────────────────
-processors:
-  # Metadata del host que corre Filebeat
-  - add_host_metadata:
-      when.not.contains.tags: forwarded
-      netinfo.enabled: true
+# processors:
+#   # Metadata del host que corre Filebeat
+#   - add_host_metadata:
+#       when.not.contains.tags: forwarded
+#       netinfo.enabled: true
 
-  # Metadata de cloud (AWS/GCP/Azure si aplica)
-  - add_cloud_metadata:
-      timeout: 3s
+#   # Metadata de cloud (AWS/GCP/Azure si aplica)
+#   - add_cloud_metadata:
+#       timeout: 3s
 
-  # Agregar campos ECS base
-  - add_fields:
-      target: ecs
-      fields:
-        version: "8.0"
+#   # Agregar campos ECS base
+#   - add_fields:
+#       target: ecs
+#       fields:
+#         version: "8.0"
 
-  # Eliminar campos internos de Filebeat que no necesitamos en ES
-  - drop_fields:
-      fields:
-        - "agent.ephemeral_id"
-        - "log.offset"
-      ignore_missing: true
+#   # Eliminar campos internos de Filebeat que no necesitamos en ES
+#   - drop_fields:
+#       fields:
+#         - "agent.ephemeral_id"
+#         - "log.offset"
+#       ignore_missing: true
 
-  # Throttle: descartar eventos duplicados en ventana de 1s
-  - drop_event:
-      when:
-        equals:
-          type: "drop"
+#   # Throttle: descartar eventos duplicados en ventana de 1s
+#   - drop_event:
+#       when:
+#         equals:
+#           type: "drop"
 
 # ─── Logging de Filebeat ──────────────────────────────────────────────────────
 logging.level:    warning
