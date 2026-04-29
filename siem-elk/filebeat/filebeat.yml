@@ -236,7 +236,7 @@ filebeat.modules:
 output.elasticsearch:
   hosts: ["https://es01:9200"]
   username: "elastic"
-  password: "SiemElastic2024!"
+  password: "SiemElastic2026!"
   # ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
   ssl.verification_mode: "none"
   # Agrupamos los logs por tipo para que sea más fácil verlos en Kibana

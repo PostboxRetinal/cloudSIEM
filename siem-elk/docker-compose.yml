@@ -1,27 +1,13 @@
 # =============================================================================
 # SIEM Platform — Elastic Stack (ELK) — 3-Node Cluster
 # Proyecto 8: Plataforma de análisis de logs y seguridad
-# VERSIÓN CORREGIDA PARA WINDOWS / DOCKER DESKTOP
+# VERSIÓN UNIVERSAL 
 # =============================================================================
 # Uso:
-#   1. Crear archivo .env con las variables requeridas (ver abajo)
-#   2. Conectarse a red sin restricciones (hotspot o casa) y hacer:
-#        docker pull elasticsearch:8.13.0
-#        docker pull kibana:8.13.0
-#        docker pull logstash:8.13.0
-#        docker pull docker.elastic.co/beats/filebeat:8.13.0
-#        docker pull docker.elastic.co/beats/metricbeat:8.13.0
-#        docker pull curlimages/curl:latest
-#   3. docker compose up -d
+#   1. Crear archivo .env con las variables requeridas
+#   2. Asegurarse de usar la versión en el gist compartido
+#   3. Ejecutar `docker compose up --build --no-cache` para recompilar evitando cache
 #   4. Esperar ~90s y verificar: bash setup/verify-cluster.sh
-#
-# Variables requeridas en .env:
-#   ELASTIC_PASSWORD=SiemElastic2024!
-#   KIBANA_PASSWORD=SiemElastic2024!
-#   STACK_VERSION=8.13.0
-#   CLUSTER_NAME=siem-cluster
-#   MEM_LIMIT=1073741824
-#   KIBANA_ENCRYPTION_KEY=changeme_32char_key_minimum_here_x
 # =============================================================================
 
 # ─── Volumes ─────────────────────────────────────────────────────────────────
@@ -49,14 +35,13 @@ networks:
 
 # ─── Services ────────────────────────────────────────────────────────────────
 services:
-
   # ─── Setup: genera certificados TLS y bootstrap del cluster ───────────────
   setup:
     image: elasticsearch:${STACK_VERSION}
     container_name: siem-setup
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
-    user: "0"
+    user: '0'
     networks:
       - elastic
     command: >
@@ -122,7 +107,7 @@ services:
       elastic:
         ipv4_address: 172.20.0.10
     ports:
-      - "9200:9200"
+      - '9200:9200'
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es01-data:/usr/share/elasticsearch/data
@@ -133,7 +118,6 @@ services:
       - discovery.seed_hosts=es02,es03
       - node.roles=master,data,ingest
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
       - xpack.security.http.ssl.key=certs/es01/es01.key
@@ -147,20 +131,11 @@ services:
       - xpack.license.self_generated.type=basic
       - xpack.ml.enabled=true
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    mem_limit: ${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
+      test: [
+          'CMD-SHELL',
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
-            grep -q 'missing authentication'",
+          grep -q 'missing authentication'",
         ]
       interval: 10s
       timeout: 10s
@@ -186,7 +161,6 @@ services:
       - discovery.seed_hosts=es01,es03
       - node.roles=master,data,ingest
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
       - xpack.security.http.ssl.key=certs/es02/es02.key
@@ -200,20 +174,11 @@ services:
       - xpack.license.self_generated.type=basic
       - xpack.ml.enabled=true
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    mem_limit: ${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
+      test: [
+          'CMD-SHELL',
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
-            grep -q 'missing authentication'",
+          grep -q 'missing authentication'",
         ]
       interval: 10s
       timeout: 10s
@@ -239,7 +204,6 @@ services:
       - discovery.seed_hosts=es01,es02
       - node.roles=master,data,ingest
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - bootstrap.memory_lock=true
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
       - xpack.security.http.ssl.key=certs/es03/es03.key
@@ -253,20 +217,11 @@ services:
       - xpack.license.self_generated.type=basic
       - xpack.ml.enabled=true
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    mem_limit: ${MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
+      test: [
+          'CMD-SHELL',
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
-            grep -q 'missing authentication'",
+          grep -q 'missing authentication'",
         ]
       interval: 10s
       timeout: 10s
@@ -289,25 +244,24 @@ services:
       elastic:
         ipv4_address: 172.20.0.20
     ports:
-      - "5601:5601"
+      - '5601:5601'
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     environment:
-      - SERVERNAME=kibana
+      - SERVERNAME=${SERVERNAME}
       - ELASTICSEARCH_HOSTS=https://es01:9200
-      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
       - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
-    mem_limit: ${MEM_LIMIT}
     healthcheck:
       test:
         [
-          "CMD-SHELL",
+          'CMD-SHELL',
           "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
         ]
       interval: 20s
@@ -327,10 +281,10 @@ services:
       elastic:
         ipv4_address: 172.20.0.30
     ports:
-      - "5044:5044"
-      - "5514:5514/udp"
-      - "5515:5514/tcp"
-      - "9600:9600"
+      - '5044:5044'
+      - '5514:5514/udp'
+      - '5515:5514/tcp'
+      - '9600:9600'
     volumes:
       - certs:/usr/share/logstash/config/certs
       - logstash-data:/usr/share/logstash/data
@@ -342,9 +296,8 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
       - LS_JAVA_OPTS=-Xms512m -Xmx512m
-    mem_limit: ${MEM_LIMIT}
     healthcheck:
-      test: [ "CMD-SHELL", "curl -s http://localhost:9600 | grep -q 'green'" ]
+      test: ['CMD-SHELL', "curl -s http://localhost:9600 | grep -q 'green'"]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -372,11 +325,11 @@ services:
       - KIBANA_HOST=http://kibana:5601
     command:
       [
-        "filebeat",
-        "-e",
-        "--strict.perms=false",
-        "-E",
-        "output.elasticsearch.ssl.verification_mode=none",
+        'filebeat',
+        '-e',
+        '--strict.perms=false',
+        '-E',
+        'output.elasticsearch.ssl.verification_mode=none',
       ]
     cap_add:
       - DAC_READ_SEARCH
@@ -396,7 +349,7 @@ services:
       - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - ELASTIC_USER=elastic
+      - ELASTIC_USER=${ELASTIC_USER}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
     command: metricbeat -e --strict.perms=false
@@ -474,7 +427,7 @@ services:
           -u "elastic:$$ELASTIC_PASSWORD" \
           "https://es01:9200/_cluster/health?pretty";
       '
-    restart: "no"
+    restart: 'no'
 
   # ─── Importación automática de reglas Kibana ───────────────────────────────
   rules-import:
@@ -543,4 +496,4 @@ services:
             cat /tmp/response.txt
           fi
         done
-    restart: "no"
+    restart: 'no'

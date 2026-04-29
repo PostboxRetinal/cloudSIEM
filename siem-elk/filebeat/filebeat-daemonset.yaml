@@ -93,7 +93,7 @@ spec:
 
       containers:
         - name: filebeat
-          image: docker.elastic.co/beats/filebeat:8.13.0
+          image: docker.elastic.co/beats/filebeat:9.3.3
           args: ["-c", "/etc/filebeat.yml", "-e"]
           env:
             - name: NODE_NAME

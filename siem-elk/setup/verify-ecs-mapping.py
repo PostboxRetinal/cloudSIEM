@@ -7,7 +7,7 @@ Comprueba las 4 fuentes de logs: syslog, nginx, auth, kubernetes.
 Uso:
     pip install requests
     python3 verify-ecs-mapping.py --host https://localhost:9200 \
-            --user elastic --password SiemElastic2024! \
+            --user elastic --password SiemElastic2026! \
             --cacert ./setup/certs/ca/ca.crt
 """
 
@@ -221,7 +221,7 @@ def main():
     parser = argparse.ArgumentParser(description="Verificar mapeo ECS en índices SIEM")
     parser.add_argument("--host",     default="https://localhost:9200")
     parser.add_argument("--user",     default="elastic")
-    parser.add_argument("--password", default="SiemElastic2024!")
+    parser.add_argument("--password", default="SiemElastic2026!")
     parser.add_argument("--cacert",   default="./setup/certs/ca/ca.crt")
     parser.add_argument("--insecure", action="store_true",
                         help="Deshabilitar verificación de certificado")

@@ -30,7 +30,7 @@ print(f'  Duración (ms):    {p.get(\"duration_in_millis\", 0):,}')
 echo ""
 echo "=== Verificar índices creados ==="
 curl -s --cacert ../setup/certs/ca/ca.crt \
-  -u "elastic:${ELASTIC_PASSWORD:-SiemElastic2024!}" \
+  -u "elastic:${ELASTIC_PASSWORD:-SiemElastic2026!}" \
   "https://localhost:9200/_cat/indices/logs-*?v&s=index" 2>/dev/null || \
   echo "  No se puede conectar a ES (ejecutar desde el host con el stack levantado)"
 
@@ -38,7 +38,7 @@ echo ""
 echo "=== Tasa de parseo por índice ==="
 for idx in logs-nginx logs-auth logs-syslog logs-k8s logs-errors; do
   COUNT=$(curl -s --cacert ../setup/certs/ca/ca.crt \
-    -u "elastic:${ELASTIC_PASSWORD:-SiemElastic2024!}" \
+    -u "elastic:${ELASTIC_PASSWORD:-SiemElastic2026!}" \
     "https://localhost:9200/${idx}-*/_count" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('count',0))" 2>/dev/null || echo 0)
   printf "  %-20s %s documentos\n" "${idx}-*:" "$COUNT"
 done
