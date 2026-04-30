@@ -1,0 +1,33 @@
+# AGENTS.md
+
+## Repo Shape
+- Read `README.md` and `.github/copilot-instructions.md` first; they define the project scope, required detections, and documentation language.
+- The real stack lives in `siem-elk/`; the repository root is mostly guidance.
+- `develop` is the working branch; `main` is stable and PR-only.
+
+## Run The Stack
+- Use `siem-elk/up.sh up|down` on Linux/macOS and `siem-elk/up.ps1 up|down` on Windows.
+- Do not use raw `docker compose` / `podman compose` unless you are debugging the wrapper.
+- The wrappers auto-detect Podman before Docker, always include `docker-compose.yml` + `docker-compose.linux.yml`, and add `docker-compose.podman.yml` when Podman is available.
+- Keep `HOST_SOCKET_PATH` indirection intact. Docker defaults to `/var/run/docker.sock`; Podman uses `$XDG_RUNTIME_DIR/podman/podman.sock`.
+- The cluster bootstrap takes about 90 seconds before health checks are meaningful.
+
+## Verify
+- From `siem-elk/`: `bash setup/verify-cluster.sh`, `python3 setup/check-cluster-health.py`, `python3 setup/verify-ecs-mapping.py`.
+- From `siem-elk/logstash/`: `bash test-pipeline.sh`.
+- Run Filebeat config checks with Podman, not Docker:
+  `podman run --rm --user 0 -e ELASTIC_PASSWORD=test -v "$PWD/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,Z" docker.elastic.co/beats/filebeat:9.3.3 filebeat test config -e -c /usr/share/filebeat/filebeat.yml`
+
+## Filebeat And Logs
+- Filebeat configs should stay on `filestream`; use `parsers` for multiline and container parsing.
+- Do not reintroduce `type: log` or `type: container` in Filebeat configs.
+- `siem-elk/logs/` contains live sample inputs for Filebeat.
+- `setup/generate-test-logs.py` writes directly to log files; its defaults point at `/var/log/...`, so override paths before using it on the host.
+
+## Scripts With Relative Paths
+- `setup/import-rules.py` has brittle relative-path defaults; check `RULES_DIR` and `CACERT` before invoking it.
+- Several helper scripts read `.env` from the current directory, so run them from the directory shown above.
+
+## Content Rules
+- Keep docs in Spanish and code/config identifiers in English.
+- Preserve the 5 required detections, 3 attack simulations, and 2 response playbooks when editing project scope docs.

@@ -44,15 +44,6 @@ services:
         bind:
           selinux: z
 
-  metricbeat:
-    volumes:
-      - type: bind
-        source: ./metricbeat/metricbeat.yml
-        target: /usr/share/metricbeat/metricbeat.yml
-        read_only: true
-        bind:
-          selinux: z
-
   ilm-setup:
     volumes:
       - type: bind

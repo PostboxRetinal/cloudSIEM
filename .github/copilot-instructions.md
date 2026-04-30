@@ -5,7 +5,7 @@ applyTo: "**"
 # CloudSIEM Copilot Instructions
 
 ## Project scope
-- This repository is an academic SIEM project built around `Elasticsearch`, `Logstash`, `Kibana`, `Filebeat` and/or `Metricbeat`, `Docker Compose`, Python log generators, and optional `Wazuh`.
+- This repository is an academic SIEM project built around `Elasticsearch`, `Logstash`, `Kibana`, `Filebeat`, `Docker Compose`, Python log generators, and optional `Wazuh`.
 - Follow the project scope, requirements, deliverables, and acceptance criteria defined in [`README.md`](../README.md).
 
 ## Source of truth

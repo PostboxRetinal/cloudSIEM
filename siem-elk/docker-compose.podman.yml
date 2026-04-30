@@ -4,6 +4,3 @@ x-podman:
 services:
   filebeat:
     userns_mode: keep-id
-
-  metricbeat:
-    userns_mode: keep-id

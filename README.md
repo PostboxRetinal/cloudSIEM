@@ -16,7 +16,7 @@ Stack objetivo del proyecto:
 - `Elasticsearch`
 - `Logstash`
 - `Kibana`
-- `Filebeat` y/o `Metricbeat`
+- `Filebeat`
 - `Docker Compose`
 - `Python` para generadores de logs
 - `Wazuh` opcional

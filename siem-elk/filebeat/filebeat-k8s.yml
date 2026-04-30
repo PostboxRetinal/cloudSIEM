@@ -6,19 +6,22 @@
 filebeat.inputs:
 
   # ─── Logs de todos los contenedores del nodo ──────────────────────────────
-  - type: container
+  - type: filestream
     id: k8s-all-containers
     enabled: true
     paths:
       - /var/log/containers/*.log
-    stream: all
+    prospector.scanner.symlinks: true
     fields:
       event.module:   kubernetes
       event.kind:     event
     fields_under_root: true
+    parsers:
+      - container:
+          stream: all
 
   # ─── Logs de componentes del plano de control ────────────────────────────
-  - type: log
+  - type: filestream
     id: k8s-control-plane
     enabled: true
     paths:

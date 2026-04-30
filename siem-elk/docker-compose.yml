@@ -340,33 +340,6 @@ services:
     cap_add:
       - DAC_READ_SEARCH
 
-  # ─── Metricbeat ───────────────────────────────────────────────────────────
-  metricbeat:
-    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
-    container_name: siem-metricbeat
-    user: root
-    depends_on:
-      es01:
-        condition: service_healthy
-      kibana:
-        condition: service_healthy
-    networks:
-      - elastic
-    volumes:
-      - certs:/usr/share/metricbeat/certs
-      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
-      - type: bind
-        source: ${HOST_SOCKET_PATH:-/var/run/docker.sock}
-        target: /var/run/docker.sock
-        read_only: true
-        bind:
-          selinux: z
-    environment:
-      - ELASTIC_USER=${ELASTIC_USER}
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - ELASTIC_HOSTS=https://es01:9200
-    command: metricbeat -e --strict.perms=false
-
   # ─── ILM Setup Job (corre una vez al inicio) ──────────────────────────────
   ilm-setup:
     image: curlimages/curl:latest
