@@ -30,4 +30,5 @@
 
 ## Content Rules
 - Keep docs in Spanish and code/config identifiers in English.
+- Do not use emojis under any circumstance.
 - Preserve the 5 required detections, 3 attack simulations, and 2 response playbooks when editing project scope docs.
