@@ -228,7 +228,7 @@ services:
 
   # ─── Kibana ───────────────────────────────────────────────────────────────
   kibana:
-    image: kibana:${STACK_VERSION}
+    image: docker.elastic.co/kibana/kibana-wolfi:${STACK_VERSION}
     container_name: siem-kibana
     depends_on:
       es01:
@@ -249,8 +249,8 @@ services:
       - kibana-data:/usr/share/kibana/data
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     environment:
-      - SERVERNAME=${SERVERNAME}
-      - ELASTICSEARCH_HOSTS=https://es01:9200
+      - SERVER_NAME=${SERVER_NAME}
+      - 'ELASTICSEARCH_HOSTS=["https://es01:9200","https://es02:9200","https://es03:9200"]'
       - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
       - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
@@ -261,7 +261,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+          "curl -s -o /dev/null -w '%{http_code}' --cacert /usr/share/kibana/config/certs/ca/ca.crt https://localhost:5601 | grep -q '^302$'",
         ]
       interval: 20s
       timeout: 10s
