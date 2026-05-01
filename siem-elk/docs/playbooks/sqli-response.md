@@ -1,4 +1,4 @@
-# 🛡️ Playbook de Respuesta: Intento de Inyección SQL (SQLi)
+# Playbook de Respuesta: Intento de Inyección SQL (SQLi)
 
 ## 1. Fase de Identificación
 

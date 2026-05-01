@@ -1,4 +1,4 @@
-# 🛡️ Playbook de Respuesta: Ataque de Fuerza Bruta (SSH/Auth)
+# Playbook de Respuesta: Ataque de Fuerza Bruta (SSH/Auth)
 
 ## 1. Fase de Identificación
 *   **Alerta:** `Security Alert: Potential SSH Brute Force Detected`.
