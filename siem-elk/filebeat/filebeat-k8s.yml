@@ -94,7 +94,9 @@ output.logstash:
   worker: 2
 
 setup.kibana:
-  host: "${KIBANA_HOST:http://kibana:5601}"
+  host: "${KIBANA_HOST:https://kibana:5601}"
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
 logging.level: warning
 logging.to_files: false  # En k8s los logs van a stdout

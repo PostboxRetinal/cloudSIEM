@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 import-rules.py
-Importa las 5 reglas de detección SIEM a Kibana usando la Security API.
+Importa las 5 reglas de detección SIEM a Kibana usando el endpoint de importación.
 También puede probar cada regla generando eventos sintéticos.
 
 Uso:
@@ -29,12 +29,12 @@ except ImportError:
     sys.exit(1)
 
 # ─── Configuración ────────────────────────────────────────────────────────────
-KIBANA_URL      = os.getenv("KIBANA_HOST",     "http://localhost:5601")
+KIBANA_URL      = os.getenv("KIBANA_HOST",     "https://localhost:5601")
 ES_URL          = os.getenv("ELASTIC_HOSTS",   "https://localhost:9200")
 ELASTIC_USER    = os.getenv("ELASTIC_USER",    "elastic")
 ELASTIC_PASS    = os.getenv("ELASTIC_PASSWORD","SiemElastic2026!")
 CACERT          = os.getenv("CACERT",          "./setup/certs/ca/ca.crt")
-RULES_DIR       = Path("../rules")
+RULES_FILE      = Path(__file__).resolve().parent.parent / "rules" / "all-rules.ndjson"
 
 # Colores
 G = "\033[92m"; R = "\033[91m"; Y = "\033[93m"
@@ -44,9 +44,9 @@ def kibana_session():
     s = requests.Session()
     s.auth    = (ELASTIC_USER, ELASTIC_PASS)
     s.headers = {
-        "kbn-xsrf":     "true",
-        "Content-Type": "application/json",
+        "kbn-xsrf": "true",
     }
+    s.verify = CACERT if Path(CACERT).exists() else False
     return s
 
 def es_session():
@@ -72,6 +72,17 @@ def wait_for_kibana(session, kibana_url, timeout_seconds=180):
     print(f"\n{R}ERROR: Kibana no respondió en {timeout_seconds} segundos{X}")
     return False
 
+def security_solution_available(session):
+    try:
+        response = session.get(f"{KIBANA_URL}/api/status", timeout=10)
+        if response.status_code != 200:
+            return False
+        data = response.json()
+        plugins = data.get("status", {}).get("plugins", {})
+        return any(name in plugins for name in ("securitySolution", "security_solution_ess", "security_solution_serverless"))
+    except requests.exceptions.RequestException:
+        return False
+
 # ─── IMPORTAR REGLAS ──────────────────────────────────────────────────────────
 def import_rules():
     print(f"\n{W}=== Importando reglas a Kibana SIEM ==={X}")
@@ -80,66 +91,44 @@ def import_rules():
     if not wait_for_kibana(session, KIBANA_URL):
         sys.exit(1)
 
-    rule_files = sorted(RULES_DIR.glob("*.json"))
-    if not rule_files:
-        print(f"{R}No se encontraron archivos .json en {RULES_DIR}{X}")
+    if not security_solution_available(session):
+        print(f"{Y}Security Solution APIs not available in this Kibana build; skipping rule import.{X}")
+        return
+
+    if not RULES_FILE.exists():
+        print(f"{R}No se encontró el archivo {RULES_FILE}{X}")
         sys.exit(1)
 
-    results = {"ok": [], "fail": []}
-
-    for rfile in rule_files:
-        rule = json.loads(rfile.read_text())
-        name = rule.get("name", rfile.name)
-        print(f"\n  Importando: {B}{name}{X}")
-
-        # Intentar crear la regla
-        r = session.post(
-            f"{KIBANA_URL}/api/detection_engine/rules",
-            json=rule,
-            verify=False,
+    print(f"\n  Importando desde: {B}{RULES_FILE}{X}")
+    with RULES_FILE.open("rb") as rule_file:
+        response = session.post(
+            f"{KIBANA_URL}/api/detection_engine/rules/_import",
+            params={"overwrite": "true"},
+            files={"file": (RULES_FILE.name, rule_file, "application/x-ndjson")},
             timeout=30,
         )
 
-        if r.status_code == 200:
-            rid = r.json().get("id", "?")
-            print(f"  {G}✓{X} Creada — id: {rid}")
-            results["ok"].append(name)
+    if response.status_code != 200:
+        print(f"  {R}✗{X} Error {response.status_code}: {response.text[:300]}")
+        sys.exit(1)
 
-        elif r.status_code == 409:
-            # Ya existe — actualizar con PUT
-            print(f"  {Y}~{X} Ya existe — actualizando...")
-            rule["rule_id"] = rule.get("id")
-            r2 = session.put(
-                f"{KIBANA_URL}/api/detection_engine/rules",
-                json=rule, verify=False, timeout=30,
-            )
-            if r2.status_code == 200:
-                print(f"  {G}✓{X} Actualizada")
-                results["ok"].append(name)
-            else:
-                print(f"  {R}✗{X} Error al actualizar: {r2.status_code} — {r2.text[:200]}")
-                results["fail"].append(name)
-        else:
-            print(f"  {R}✗{X} Error {r.status_code}: {r.text[:300]}")
-            results["fail"].append(name)
+    payload = response.json()
+    imported = payload.get("success_count", 0)
+    total = payload.get("rules_count", 0)
+    if not payload.get("success"):
+        print(f"  {R}✗{X} Importación incompleta: {imported}/{total}")
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        sys.exit(1)
 
-    # Habilitar el motor de detección si no está activo
-    print(f"\n  Habilitando motor de detección...")
-    session.post(
-        f"{KIBANA_URL}/api/detection_engine/index",
-        json={}, verify=False, timeout=30,
-    )
-
-    print(f"\n{W}Resumen:{X}")
-    print(f"  {G}✓ Exitosas:{X} {len(results['ok'])}")
-    print(f"  {R}✗ Fallidas:{X} {len(results['fail'])}")
-    for f in results["fail"]:
-        print(f"    - {f}")
+    print(f"  {G}✓{X} Importadas {imported}/{total} reglas")
 
 # ─── ESTADO DE REGLAS ─────────────────────────────────────────────────────────
 def check_status():
     print(f"\n{W}=== Estado de las reglas SIEM ==={X}")
     session  = kibana_session()
+    if not security_solution_available(session):
+        print(f"{Y}Security Solution APIs not available in this Kibana build; no rule status to show.{X}")
+        return
     r = session.get(
         f"{KIBANA_URL}/api/detection_engine/rules/_find?per_page=20&filter=alert.attributes.tags:%22SIEM%22",
         verify=False, timeout=30,
@@ -347,6 +336,8 @@ def generate_test_events():
 
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 def main():
+    global KIBANA_URL, ES_URL, ELASTIC_USER, ELASTIC_PASS, CACERT
+
     parser = argparse.ArgumentParser(
         description="Gestión de reglas SIEM en Kibana"
     )
@@ -365,8 +356,6 @@ def main():
 
     print(f"{W}SIEM Rules Manager{X} — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"Kibana: {args.kibana} | ES: {args.es}")
-
-    global KIBANA_URL, ES_URL, ELASTIC_USER, ELASTIC_PASS, CACERT
     KIBANA_URL = args.kibana
     ES_URL       = args.es
     ELASTIC_USER = args.user

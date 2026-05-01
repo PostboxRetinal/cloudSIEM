@@ -17,6 +17,12 @@ services:
         bind:
           selinux: z
       - type: bind
+        source: ./logstash/config/log4j2.properties
+        target: /usr/share/logstash/config/log4j2.properties
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
         source: ./logstash/pipeline
         target: /usr/share/logstash/pipeline
         read_only: true
@@ -25,6 +31,33 @@ services:
       - type: bind
         source: ./logstash/patterns
         target: /usr/share/logstash/patterns
+        read_only: true
+        bind:
+          selinux: z
+
+  es01:
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/log4j2.properties
+        target: /usr/share/elasticsearch/config/log4j2.properties
+        read_only: true
+        bind:
+          selinux: z
+
+  es02:
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/log4j2.properties
+        target: /usr/share/elasticsearch/config/log4j2.properties
+        read_only: true
+        bind:
+          selinux: z
+
+  es03:
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/log4j2.properties
+        target: /usr/share/elasticsearch/config/log4j2.properties
         read_only: true
         bind:
           selinux: z

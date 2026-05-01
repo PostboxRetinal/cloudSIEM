@@ -243,8 +243,7 @@ output.elasticsearch:
   hosts: ["https://es01:9200"]
   username: "elastic"
   password: "${ELASTIC_PASSWORD}"
-  # ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
-  ssl.verification_mode: "none"
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
   # Agrupamos los logs por tipo para que sea más fácil verlos en Kibana
   indices:
     - index: "logs-nginx-%{+yyyy.MM.dd}"
@@ -262,9 +261,11 @@ output.elasticsearch:
 
 # ─── Setup (Kibana dashboards + ILM) ─────────────────────────────────────────
 setup.kibana:
-  host: "${KIBANA_HOST:http://kibana:5601}"
+  host: "${KIBANA_HOST:https://kibana:5601}"
   username: "${ELASTIC_USER:elastic}"
   password: "${ELASTIC_PASSWORD}"
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
 setup.ilm.enabled:        true
 setup.ilm.policy_name:    "siem-logs-policy"

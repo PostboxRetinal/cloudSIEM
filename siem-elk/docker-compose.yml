@@ -110,12 +110,13 @@ services:
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es01-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro
     environment:
       - node.name=es01
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es02,es03
-      - node.roles=master,data,ingest
+      - node.roles=master,data,ingest,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -153,12 +154,13 @@ services:
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es02-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro
     environment:
       - node.name=es02
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es03
-      - node.roles=master,data,ingest
+      - node.roles=master,data,ingest,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -196,12 +198,13 @@ services:
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es03-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro
     environment:
       - node.name=es03
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es02
-      - node.roles=master,data,ingest
+      - node.roles=master,data,ingest,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -288,6 +291,7 @@ services:
       - certs:/usr/share/logstash/config/certs
       - logstash-data:/usr/share/logstash/data
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/config/log4j2.properties:/usr/share/logstash/config/log4j2.properties:ro
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/patterns:/usr/share/logstash/patterns:ro
     environment:
@@ -328,14 +332,12 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTIC_HOSTS=https://es01:9200
       - LOGSTASH_HOST=logstash:5044
-      - KIBANA_HOST=http://kibana:5601
+      - KIBANA_HOST=https://kibana:5601
     command:
       [
         'filebeat',
         '-e',
         '--strict.perms=false',
-        '-E',
-        'output.elasticsearch.ssl.verification_mode=none',
       ]
     cap_add:
       - DAC_READ_SEARCH
@@ -434,7 +436,7 @@ services:
     environment:
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - KIBANA_HOST=http://kibana:5601
+      - KIBANA_HOST=https://kibana:5601
       - CACERT=/certs/ca/ca.crt
     entrypoint:
       - sh
@@ -442,46 +444,27 @@ services:
       - |
         set -e
         echo "Esperando a que Kibana esté disponible..."
-        until curl -s -o /dev/null -w "%{http_code}" "$${KIBANA_HOST}" | grep -qE "^(200|302)$"; do
+        until curl -s --cacert "$${CACERT}" -o /dev/null -w "%{http_code}" "$${KIBANA_HOST}" | grep -qE "^(200|302)$"; do
           echo "  esperando a Kibana..."
           sleep 5
         done
 
-        for rule_file in /rules/*.json; do
-          [ -f "$${rule_file}" ] || continue
-          echo "\nImportando regla: $${rule_file}"
-          http_code=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST "$${KIBANA_HOST}/api/detection_engine/rules" \
-            -H "kbn-xsrf: true" \
-            -H "Content-Type: application/json" \
-            -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
-            --insecure \
-            -d "@$$rule_file")
+        status_json=$(curl -s --cacert "$${CACERT}" -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" "$${KIBANA_HOST}/api/status")
+        if ! printf '%s' "$${status_json}" | grep -qE '"securitySolution"|"security_solution_ess"|"security_solution_serverless"'; then
+          echo "  Security Solution APIs are not available in this Kibana build; skipping rule import."
+          exit 0
+        fi
 
-          if [ "$${http_code}" = "200" ]; then
-            echo "  ✓ Creada"
-            continue
-          fi
+        http_code=$(curl -s --cacert "$${CACERT}" -o /tmp/response.txt -w "%{http_code}" -X POST "$${KIBANA_HOST}/api/detection_engine/rules/_import?overwrite=true" \
+          -H "kbn-xsrf: true" \
+          -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
+          --form "file=@/rules/all-rules.ndjson;type=application/x-ndjson")
 
-          if [ "$${http_code}" = "409" ]; then
-            rule_id=$(grep -o '"rule_id"[[:space:]]*:[[:space:]]*"[^"]*"' "$${rule_file}" | head -n1 | sed -E 's/.*"rule_id"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
-            if [ -z "$${rule_id}" ]; then
-              rule_id=$(grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' "$${rule_file}" | head -n1 | sed -E 's/.*"id"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
-            fi
-            if [ -n "$${rule_id}" ]; then
-              echo "  Ya existe, actualizando regla_id=$${rule_id}"
-              curl -s -o /tmp/response2.txt -w "%{http_code}" -X PUT "$${KIBANA_HOST}/api/detection_engine/rules" \
-                -H "kbn-xsrf: true" \
-                -H "Content-Type: application/json" \
-                -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
-                --insecure \
-                -d "@$$rule_file"
-              echo "  ✓ Actualizada"
-            else
-              echo "  ⚠ No se encontró rule_id/id para actualizar"
-            fi
-          else
-            echo "  ✗ Error HTTP $${http_code}"
-            cat /tmp/response.txt
-          fi
-        done
+        if [ "$${http_code}" != "200" ] || ! grep -q '"success"[[:space:]]*:[[:space:]]*true' /tmp/response.txt; then
+          echo "  ✗ Error importando reglas"
+          cat /tmp/response.txt
+          exit 1
+        fi
+
+        echo "  ✓ Reglas importadas"
     restart: 'no'

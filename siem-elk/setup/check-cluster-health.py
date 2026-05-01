@@ -46,12 +46,12 @@ def run_diagnostic():
     # --- 2. SERVICIOS ELK (Logstash / Kibana) ---
     print("\n⚙️  [2/4] ESTADO DE SERVICIOS")
     services = {
-        "Kibana": "http://kibana:5601/api/status",
+        "Kibana": "https://kibana:5601/api/status",
         "Logstash": "http://logstash:9600/_node/stats"
     }
     for name, url in services.items():
         try:
-            res = requests.get(url, timeout=3)
+            res = requests.get(url, timeout=3, verify=False)
             status = "✅ LIVE" if res.status_code == 200 else "🟡 STARTING"
             print(f"   └─ {name.ljust(10)}: {status}")
         except:
@@ -61,9 +61,9 @@ def run_diagnostic():
     print("\n🛡️  [3/4] REGLAS DE DETECCIÓN (SIEM)")
     try:
         # Consultar reglas vía API de Kibana
-        rules = requests.get("http://kibana:5601/api/detection_engine/rules/_find", 
+        rules = requests.get("https://kibana:5601/api/detection_engine/rules/_find",
                             auth=('elastic', ELASTIC_PASSWORD), 
-                            headers={"kbn-xsrf": "true"}, timeout=5).json()
+                            headers={"kbn-xsrf": "true"}, timeout=5, verify=False).json()
         total_rules = rules.get('total', 0)
         mark = "✅" if total_rules >= 5 else "🟡"
         print(f"   {mark} Reglas Activas: {total_rules} (Mínimo requerido: 5)")
