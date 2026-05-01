@@ -17,8 +17,8 @@ elasticsearch.ssl.verificationMode: certificate
 # Mantener el comportamiento Docker por defecto al usar un kibana.yml personalizado
 monitoring.ui.container.elasticsearch.enabled: true
 
-# Configuración de flota e índices (necesario para el SIEM)
-xpack.fleet.outputs: [{id: fleet-default-output, name: default, type: elasticsearch, hosts: ["https://es01:9200"]}]
+# Fleet no se usa en este stack; evita tareas y logs de agente/agentless
+xpack.fleet.enabled: false
 
 # Evita que se llene de logs innecesarios
 logging.root.level: info
