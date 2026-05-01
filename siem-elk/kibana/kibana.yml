@@ -30,3 +30,8 @@ telemetry.allowChangingOptInStatus: false
 
 # Evita ruido de arranque; conserva WARN+ y ERROR
 logging.root.level: warn
+
+# Silencia el task de Cases que falla cuando no hay sesiones/casos activos
+logging.loggers:
+  - name: plugins.cases.incremental_id_task
+    level: error
