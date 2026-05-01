@@ -20,5 +20,8 @@ monitoring.ui.container.elasticsearch.enabled: true
 # Fleet no se usa en este stack; evita tareas y logs de agente/agentless
 xpack.fleet.enabled: false
 
+# Reporting no se usa aquí y su arranque puede fallar bajo carga del cluster
+xpack.reporting.enabled: false
+
 # Evita que se llene de logs innecesarios
 logging.root.level: info
