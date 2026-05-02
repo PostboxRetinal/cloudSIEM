@@ -18,6 +18,12 @@ applyTo: "**"
 - Prefer factual statements over promotional or decorative wording.
 - Keep explanations practical and focused on what exists, what is missing, and what should be implemented next.
 
+## Coding approach
+- Think before coding: state assumptions explicitly. If something is unclear or multiple interpretations exist, ask instead of guessing.
+- Keep solutions minimal: implement only what was requested. Avoid speculative abstractions, configurability, or error handling for impossible scenarios.
+- Make surgical changes: touch only what is necessary, match existing style, and do not refactor unrelated code or comments. Clean up only unused imports, variables, or functions created by your own changes.
+- Be goal-driven: for multi-step work, outline a brief plan and define how each step will be verified.
+
 ## Documentation rules
 - Write project documentation in Spanish.
 - Keep code, configuration keys, service names, index names, and technical identifiers in English.

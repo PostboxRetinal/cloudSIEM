@@ -28,6 +28,12 @@
 - `setup/import-rules.py` has brittle relative-path defaults; check `RULES_DIR` and `CACERT` before invoking it.
 - Several helper scripts read `.env` from the current directory, so run them from the directory shown above.
 
+## Coding Approach
+- Think before coding: state assumptions explicitly. If something is unclear or has multiple plausible interpretations, ask instead of guessing.
+- Keep solutions minimal: implement only what was requested. Avoid speculative abstractions, configurability, or error handling for impossible scenarios.
+- Make surgical changes: touch only what is necessary, match existing style, and do not refactor unrelated code or comments. Remove only unused imports, variables, or functions created by your own changes.
+- Be goal-driven: for multi-step work, outline a brief plan and define how each step will be verified.
+
 ## Content Rules
 - Keep docs in Spanish and code/config identifiers in English.
 - Do not use emojis under any circumstance.
