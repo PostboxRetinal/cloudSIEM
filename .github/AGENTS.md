@@ -6,10 +6,10 @@
 - `develop` is the working branch; `main` is stable and PR-only.
 
 ## Run The Stack
-- Use `siem-elk/up.sh up|down` on Linux/macOS and `siem-elk/up.ps1 up|down` on Windows.
-- Do not use raw `docker compose` / `podman compose` unless you are debugging the wrapper.
-- The wrappers auto-detect Podman before Docker, always include `docker-compose.yml` + `docker-compose.linux.yml`, and add `docker-compose.podman.yml` when Podman is available.
-- Keep `HOST_SOCKET_PATH` indirection intact. Docker defaults to `/var/run/docker.sock`; Podman uses `$XDG_RUNTIME_DIR/podman/podman.sock`.
+- Use explicit Compose files from `siem-elk/`: `podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
+- Stop the stack with the same file order: `podman compose -f docker-compose.yml -f docker-compose-podman.yml down`.
+- `docker-compose.yml` is the universal base; `docker-compose-podman.yml` is the Linux + Podman override.
+- The Podman override mounts `$XDG_RUNTIME_DIR/podman/podman.sock` at `/var/run/docker.sock` for Filebeat metadata enrichment.
 - The cluster bootstrap takes about 90 seconds before health checks are meaningful.
 
 ## Verify

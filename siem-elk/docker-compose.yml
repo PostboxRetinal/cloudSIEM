@@ -5,7 +5,7 @@
 # =============================================================================
 # Uso:
 #   1. Crear archivo .env con las variables requeridas
-#   2. Ejecutar `./up.sh` o `./up.ps1` con `up` o `down`
+#   2. En Linux con Podman: `podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build`
 #   3. Esperar ~90s y verificar: bash setup/verify-cluster.sh
 # =============================================================================
 

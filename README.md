@@ -23,6 +23,24 @@ CloudSIEM es una plataforma SIEM académica basada en Elastic Stack para central
 - `Docker Compose` como despliegue principal; `Kubernetes` como ruta complementaria.
 - `Python` para generadores de logs y utilidades.
 
+## Despliegue local con Podman en Linux
+
+El despliegue en Linux con Podman usa el archivo base y un override específico para Podman:
+
+```bash
+cd siem-elk
+systemctl --user start podman.socket
+podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build
+```
+
+Para detener el entorno:
+
+```bash
+podman compose -f docker-compose.yml -f docker-compose-podman.yml down
+```
+
+El override `docker-compose-podman.yml` configura relabeling SELinux para bind mounts, `userns_mode: keep-id` en Filebeat y el socket rootless de Podman desde `$XDG_RUNTIME_DIR/podman/podman.sock`.
+
 ## Arquitectura propuesta
 
 ```text
@@ -117,10 +135,7 @@ A medida que avance la implementación, este repositorio debería incorporar una
 │   └── copilot-instructions.md
 └── siem-elk/
     ├── docker-compose.yml
-    ├── docker-compose.linux.yml
-    ├── docker-compose.podman.yml
-    ├── up.sh
-    ├── up.ps1
+    ├── docker-compose-podman.yml
     ├── filebeat/
     ├── logstash/
     ├── kibana/
