@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+# Set-StrictMode -Version Latest
 Set-Location -LiteralPath $PSScriptRoot
 
 function Test-Command {
@@ -35,10 +35,10 @@ function Ensure-PodmanSocket {
 
 $Action = 'up'
 $RemainingArgs = @($ComposeArgs)
-if ($ComposeArgs.Count -gt 0 -and $ComposeArgs[0] -in @('up', 'down')) {
+if (@($ComposeArgs).Count -gt 0 -and $ComposeArgs[0] -in @('up', 'down')) {
   $Action = $ComposeArgs[0]
-  if ($ComposeArgs.Count -gt 1) {
-    $RemainingArgs = @($ComposeArgs[1..($ComposeArgs.Count - 1)])
+  if (@($ComposeArgs).Count -gt 1) {
+    $RemainingArgs = @($ComposeArgs[1..(@($ComposeArgs).Count - 1)])
   } else {
     $RemainingArgs = @()
   }
