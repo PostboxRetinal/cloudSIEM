@@ -36,7 +36,7 @@ networks:
 services:
   # ─── Setup: genera certificados TLS y bootstrap del cluster ───────────────
   setup:
-    image: elasticsearch:${STACK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     container_name: siem-setup
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
@@ -97,7 +97,7 @@ services:
 
   # ─── Elasticsearch Nodo 1 (master eligible + data) ────────────────────────
   es01:
-    image: elasticsearch:${STACK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     container_name: siem-es01
     depends_on:
       setup:
@@ -143,7 +143,7 @@ services:
 
   # ─── Elasticsearch Nodo 2 (master eligible + data) ────────────────────────
   es02:
-    image: elasticsearch:${STACK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     container_name: siem-es02
     depends_on:
       setup:
@@ -187,7 +187,7 @@ services:
 
   # ─── Elasticsearch Nodo 3 (master eligible + data) ────────────────────────
   es03:
-    image: elasticsearch:${STACK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     container_name: siem-es03
     depends_on:
       setup:
@@ -231,7 +231,7 @@ services:
 
   # ─── Kibana ───────────────────────────────────────────────────────────────
   kibana:
-    image: docker.elastic.co/kibana/kibana-wolfi:${STACK_VERSION}
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     container_name: siem-kibana
     depends_on:
       es01:
@@ -272,7 +272,7 @@ services:
 
   # ─── Logstash ─────────────────────────────────────────────────────────────
   logstash:
-    image: logstash:${STACK_VERSION}
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
     container_name: siem-logstash
     depends_on:
       es01:
@@ -449,10 +449,14 @@ services:
           sleep 5
         done
 
-        status_json=$(curl -s --cacert "$${CACERT}" -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" "$${KIBANA_HOST}/api/status")
-        if ! printf '%s' "$${status_json}" | grep -qE '"securitySolution"|"security_solution_ess"|"security_solution_serverless"'; then
-          echo "  Security Solution APIs are not available in this Kibana build; skipping rule import."
-          exit 0
+        if [ "$$SKIP_PREFLIGHT" = "true" ]; then
+          echo "  SKIP_PREFLIGHT=true, omitiendo comprobación de Security Solution..."
+        else
+          status_json=$(curl -s --cacert "$${CACERT}" -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" "$${KIBANA_HOST}/api/status")
+          if ! printf '%s' "$${status_json}" | grep -qE '"securitySolution"|"security_solution_ess"|"security_solution_serverless"'; then
+            echo "  Security Solution APIs are not available in this Kibana build; skipping rule import."
+            exit 0
+          fi
         fi
 
         http_code=$(curl -s --cacert "$${CACERT}" -o /tmp/response.txt -w "%{http_code}" -X POST "$${KIBANA_HOST}/api/detection_engine/rules/_import?overwrite=true" \
@@ -467,4 +471,31 @@ services:
         fi
 
         echo "  ✓ Reglas importadas"
+    restart: 'no'
+
+  # ─── Importación automática de dashboards Kibana ──────────────────────────
+  dashboards-import:
+    image: python:3.11-slim
+    container_name: siem-dashboards-import
+    user: "0"
+    depends_on:
+      kibana:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.41
+    volumes:
+      - certs:/certs:ro
+      - ./setup:/app/setup:ro
+    working_dir: /app
+    environment:
+      - KIBANA_HOST=https://kibana:5601
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - CACERT=/certs/ca/ca.crt
+    entrypoint: |
+      sh -c "
+      pip install -q requests urllib3 &&
+      python setup/import-dashboards.py
+      "
     restart: 'no'

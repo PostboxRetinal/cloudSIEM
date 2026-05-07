@@ -258,6 +258,7 @@ output.elasticsearch:
     - index: "logs-k8s-%{+yyyy.MM.dd}"
       when.equals:
         event.dataset: "kubernetes.container"
+    - index: "logs-filebeat-%{+yyyy.MM.dd}"
 
 # ─── Setup (Kibana dashboards + ILM) ─────────────────────────────────────────
 setup.kibana:
@@ -267,10 +268,7 @@ setup.kibana:
   ssl.enabled: true
   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
-setup.ilm.enabled:        true
-setup.ilm.policy_name:    "siem-logs-policy"
-setup.ilm.rollover_alias: "filebeat"
-setup.ilm.check_exists:   true
+setup.ilm.enabled:        false
 
 setup.dashboards.enabled: true
 

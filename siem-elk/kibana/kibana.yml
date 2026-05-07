@@ -1,9 +1,8 @@
 server.name: kibana
 server.host: "0.0.0.0"
 server.port: 5601
-server.protocol: http2
 
-# TLS de entrada para eliminar la advertencia de HTTP/1 y usar HTTP/2 por defecto
+# TLS de entrada para asegurar acceso HTTPS en Kibana
 server.ssl.enabled: true
 server.ssl.certificate: /usr/share/kibana/config/certs/kibana/kibana.crt
 server.ssl.key: /usr/share/kibana/config/certs/kibana/kibana.key
@@ -19,13 +18,13 @@ monitoring.kibana.collection.enabled: false
 monitoring.ui.enabled: false
 
 # Fleet no se usa en este stack; evita tareas y logs de agente/agentless
-xpack.fleet.enabled: false
+# xpack.fleet.enabled: false
 
 # Reporting no se usa aquí y su arranque puede fallar bajo carga del cluster
 xpack.reporting.enabled: false
 
 # Telemetry/usage collection desactivado en el stack local
-telemetry.optIn: false
+telemetry.optIn: true
 telemetry.allowChangingOptInStatus: false
 
 # Evita ruido de arranque; conserva WARN+ y ERROR
