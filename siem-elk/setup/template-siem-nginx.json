@@ -3,6 +3,7 @@
   "template": {
     "settings": {
       "index.lifecycle.name": "siem-logs-policy",
+      "index.lifecycle.rollover_alias": "logs-nginx",
       "index.number_of_shards": 1,
       "index.number_of_replicas": 0
     },
@@ -15,5 +16,6 @@
         "event.dataset": { "type": "constant_keyword", "value": "nginx.access" }
       }
     }
-  }
+  },
+  "priority": 200
 }

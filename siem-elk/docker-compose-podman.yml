@@ -10,6 +10,12 @@ services:
         read_only: true
         bind:
           selinux: z
+      - type: bind
+        source: ./kibana/node.options
+        target: /usr/share/kibana/config/node.options
+        read_only: true
+        bind:
+          selinux: z
 
   logstash:
     volumes:

@@ -116,7 +116,7 @@ services:
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es02,es03
-      - node.roles=master,data,ingest,remote_cluster_client
+      - node.roles=master,data,ingest,transform,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -160,7 +160,7 @@ services:
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es03
-      - node.roles=master,data,ingest,remote_cluster_client
+      - node.roles=master,data,ingest,transform,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -204,7 +204,7 @@ services:
       - cluster.name=${CLUSTER_NAME}
       - cluster.initial_master_nodes=es01,es02,es03
       - discovery.seed_hosts=es01,es02
-      - node.roles=master,data,ingest,remote_cluster_client
+      - node.roles=master,data,ingest,transform,remote_cluster_client
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
@@ -251,6 +251,7 @@ services:
       - certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./kibana/node.options:/usr/share/kibana/config/node.options:ro
     environment:
       - SERVER_NAME=${SERVER_NAME}
       - 'ELASTICSEARCH_HOSTS=["https://es01:9200","https://es02:9200","https://es03:9200"]'
@@ -314,6 +315,8 @@ services:
       es01:
         condition: service_healthy
       kibana:
+        condition: service_healthy
+      logstash:
         condition: service_healthy
     networks:
       - elastic
@@ -452,15 +455,21 @@ services:
         if [ "$$SKIP_PREFLIGHT" = "true" ]; then
           echo "  SKIP_PREFLIGHT=true, omitiendo comprobación de Security Solution..."
         else
-          status_json=$(curl -s --cacert "$${CACERT}" -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" "$${KIBANA_HOST}/api/status")
-          if ! printf '%s' "$${status_json}" | grep -qE '"securitySolution"|"security_solution_ess"|"security_solution_serverless"'; then
-            echo "  Security Solution APIs are not available in this Kibana build; skipping rule import."
+          privileges_code=$(curl -s --cacert "$${CACERT}" -o /tmp/detection-privileges.txt -w "%{http_code}" \
+            -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
+            -H "kbn-xsrf: true" \
+            -H "Elastic-Api-Version: 2023-10-31" \
+            "$${KIBANA_HOST}/api/detection_engine/privileges")
+          if [ "$${privileges_code}" != "200" ]; then
+            echo "  Security Solution APIs are not available (HTTP $${privileges_code}); skipping rule import."
+            cat /tmp/detection-privileges.txt
             exit 0
           fi
         fi
 
         http_code=$(curl -s --cacert "$${CACERT}" -o /tmp/response.txt -w "%{http_code}" -X POST "$${KIBANA_HOST}/api/detection_engine/rules/_import?overwrite=true" \
           -H "kbn-xsrf: true" \
+          -H "Elastic-Api-Version: 2023-10-31" \
           -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
           --form "file=@/rules/all-rules.ndjson;type=application/x-ndjson")
 

@@ -211,54 +211,17 @@ filebeat.inputs:
               return event;
             }
 
-# ─── Módulos de Filebeat (complementan los inputs manuales) ──────────────────
-filebeat.modules:
-  - module: system
-    syslog:
-      enabled: true
-      var.paths: ["/var/log/syslog", "/var/log/messages"]
-    auth:
-      enabled: true
-      var.paths: ["/var/log/auth.log", "/var/log/secure"]
-
-  - module: nginx
-    access:
-      enabled: true
-      var.paths: ["/var/log/nginx/access.log"]
-    error:
-      enabled: true
-      var.paths: ["/var/log/nginx/error.log"]
+# ─── Módulos de Filebeat ─────────────────────────────────────────────────────
+# Desactivados: los inputs manuales envían a Logstash, donde se hace el parsing.
+filebeat.modules: []
 
 # ─── Output: Logstash (enriquecimiento y routing) ────────────────────────────
-# output.logstash:
-#   hosts:
-#     - "${LOGSTASH_HOST:logstash:5044}"
-#   worker:           2
-#   bulk_max_size:    2048
-#   compression_level: 3
-#   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
-
-# ─── Output: Directo a Elasticsearch (HABILITADO) ────────────────────────────
-output.elasticsearch:
-  hosts: ["https://es01:9200"]
-  username: "elastic"
-  password: "${ELASTIC_PASSWORD}"
-  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
-  # Agrupamos los logs por tipo para que sea más fácil verlos en Kibana
-  indices:
-    - index: "logs-nginx-%{+yyyy.MM.dd}"
-      when.equals:
-        event.dataset: "nginx.access"
-    - index: "logs-auth-%{+yyyy.MM.dd}"
-      when.equals:
-        event.dataset: "system.auth"
-    - index: "logs-syslog-%{+yyyy.MM.dd}"
-      when.equals:
-        event.dataset: "system.syslog"
-    - index: "logs-k8s-%{+yyyy.MM.dd}"
-      when.equals:
-        event.dataset: "kubernetes.container"
-    - index: "logs-filebeat-%{+yyyy.MM.dd}"
+output.logstash:
+  hosts:
+    - "${LOGSTASH_HOST:logstash:5044}"
+  worker:           2
+  bulk_max_size:    2048
+  compression_level: 3
 
 # ─── Setup (Kibana dashboards + ILM) ─────────────────────────────────────────
 setup.kibana:
@@ -270,10 +233,10 @@ setup.kibana:
 
 setup.ilm.enabled:        false
 
-setup.dashboards.enabled: true
+setup.dashboards.enabled: false
 
 # ─── Template de índice ───────────────────────────────────────────────────────
-setup.template.enabled:       true
+setup.template.enabled:       false
 setup.template.name:          "filebeat"
 setup.template.pattern:       "filebeat-*"
 setup.template.overwrite:     true

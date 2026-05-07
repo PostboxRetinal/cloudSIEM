@@ -17,14 +17,14 @@ elasticsearch.ssl.verificationMode: certificate
 monitoring.kibana.collection.enabled: false
 monitoring.ui.enabled: false
 
-# Fleet no se usa en este stack; evita tareas y logs de agente/agentless
-# xpack.fleet.enabled: false
+# Security Solution (SIEM) habilitado para usarlo en el stack local
+xpack.securitySolution.enabled: true
 
 # Reporting no se usa aquí y su arranque puede fallar bajo carga del cluster
 xpack.reporting.enabled: false
 
 # Telemetry/usage collection desactivado en el stack local
-telemetry.optIn: true
+telemetry.optIn: false
 telemetry.allowChangingOptInStatus: false
 
 # Evita ruido de arranque; conserva WARN+ y ERROR

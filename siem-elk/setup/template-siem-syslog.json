@@ -3,6 +3,7 @@
   "template": {
     "settings": {
       "index.lifecycle.name": "siem-logs-policy",
+      "index.lifecycle.rollover_alias": "logs-syslog",
       "index.number_of_shards": 1,
       "index.number_of_replicas": 0
     },
@@ -14,5 +15,6 @@
         "log.level": { "type": "keyword" }
       }
     }
-  }
+  },
+  "priority": 200
 }
