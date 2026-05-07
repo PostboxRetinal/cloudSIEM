@@ -1,0 +1,18 @@
+{
+  "index_patterns": ["logs-k8s-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "siem-logs-policy",
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "container.name": { "type": "keyword" },
+        "kubernetes.pod.name": { "type": "keyword" }
+      }
+    }
+  },
+  "priority": 100
+}

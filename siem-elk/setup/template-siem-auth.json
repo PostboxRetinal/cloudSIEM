@@ -1,0 +1,19 @@
+{
+  "index_patterns": ["logs-auth-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "siem-logs-policy",
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "source.ip": { "type": "ip" },
+        "event.outcome": { "type": "keyword" },
+        "event.action": { "type": "keyword" },
+        "user.name": { "type": "keyword" }
+      }
+    }
+  }
+}

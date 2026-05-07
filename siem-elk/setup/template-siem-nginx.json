@@ -1,0 +1,19 @@
+{
+  "index_patterns": ["logs-nginx-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "siem-logs-policy",
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "client.ip": { "type": "ip" },
+        "source.ip": { "type": "ip" },
+        "http.response.status_code": { "type": "long" },
+        "event.dataset": { "type": "constant_keyword", "value": "nginx.access" }
+      }
+    }
+  }
+}
