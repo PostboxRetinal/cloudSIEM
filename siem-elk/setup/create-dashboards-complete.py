@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 create-dashboards-complete.py
-Genera dashboards ejecutivo y operacional con visualizaciones completas para Kibana 8.3.3
+Genera dashboards ejecutivo y operacional con visualizaciones completas para Kibana 8.19.14
 """
 
 import json
@@ -16,7 +16,7 @@ def build_dashboard(dashboard_id, title, description, panel_specs):
         panel_ref_name = f"panel_{index}"
         panels.append(
             {
-                "version": "8.3.3",
+                "version": "8.19.14",
                 "type": "visualization",
                 "gridData": panel_spec["gridData"],
                 "panelIndex": str(index),
@@ -63,7 +63,7 @@ def build_dashboard(dashboard_id, title, description, panel_specs):
     }
 
 def create_complete_dashboards():
-    """Crea dashboards con visualizaciones para Kibana 8.3.3"""
+    """Crea dashboards con visualizaciones para Kibana 8.19.14"""
     
     saved_objects = []
     
@@ -470,7 +470,7 @@ def create_complete_dashboards():
         for item in saved_objects:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
     
-    print(f"✓ Dashboards completos creados para Kibana 8.3.3")
+    print(f"✓ Dashboards completos creados para Kibana 8.19.14")
     print(f"  Archivo: {output_path}")
     print(f"  Visualizaciones: {sum(1 for d in saved_objects if d['type'] == 'visualization')}")
     print(f"  Dashboards: {sum(1 for d in saved_objects if d['type'] == 'dashboard')}")

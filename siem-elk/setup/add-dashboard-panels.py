@@ -85,28 +85,28 @@ def main():
     # Paneles para dashboard ejecutivo
     exec_panels = [
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 0, "w": 24, "h": 12},
             "type": "visualization",
             "id": "viz-system-health",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 24, "y": 0, "w": 24, "h": 12},
             "type": "visualization",
             "id": "viz-top-threats",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 12, "w": 48, "h": 12},
             "type": "visualization",
             "id": "viz-alert-trend",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 24, "w": 48, "h": 15},
             "type": "visualization",
             "id": "viz-top-ips",
@@ -117,28 +117,28 @@ def main():
     # Paneles para dashboard operacional
     ops_panels = [
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 0, "w": 24, "h": 15},
             "type": "visualization",
             "id": "viz-top-users",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 24, "y": 0, "w": 24, "h": 15},
             "type": "visualization",
             "id": "viz-top-ips",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 15, "w": 48, "h": 18},
             "type": "visualization",
             "id": "viz-alerts-table",
             "embeddableConfig": {}
         },
         {
-            "version": "8.3.3",
+            "version": "8.19.14",
             "gridData": {"x": 0, "y": 33, "w": 48, "h": 20},
             "type": "visualization",
             "id": "viz-events-table",

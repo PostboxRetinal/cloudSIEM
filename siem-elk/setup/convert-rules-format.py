@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 convert-rules-format.py
-Convierte los archivos de reglas JSON a formato compatible con Kibana 8.3.3
+Convierte los archivos de reglas JSON a formato compatible con Kibana 8.19.14
 Renombra "id" a "rule_id" en cada regla.
 """
 
