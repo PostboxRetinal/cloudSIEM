@@ -183,24 +183,19 @@ def create_complete_dashboards():
         }
     }
     saved_objects.append(viz_alert_trend)
-    
-    # 3. Top IPs (horizontal bar)
+
+    # 3. Top IPs (Table)
     viz_top_ips = {
         "type": "visualization",
         "id": "viz-top-ips",
         "attributes": {
-            "title": "Top IPs con Eventos",
+            "title": "Top IPs con más Eventos",
             "visState": json.dumps({
-                "title": "Top IPs con Eventos",
-                "type": "histogram",
+                "title": "Top IPs con más Eventos",
+                "type": "table",
                 "params": {
-                    "grid": {"categoryLines": False, "valueAxis": "ValueAxis-1"},
-                    "categoryAxes": [{"id": "CategoryAxis-1", "type": "category", "position": "left", "show": True, "style": {}, "scale": {"type": "linear"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "valueAxes": [{"id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "bottom", "show": True, "style": {}, "scale": {"type": "linear", "mode": "normal"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "seriesParams": [{"show": True, "type": "bars", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1", "drawLinesBetweenPoints": True}],
-                    "addLegend": False,
-                    "addTooltip": True,
-                    "legendPosition": "right"
+                    "perPage": 10,
+                    "showTotal": False,
                 },
                 "aggs": [
                     {
@@ -214,9 +209,9 @@ def create_complete_dashboards():
                         "id": "2",
                         "enabled": True,
                         "type": "terms",
-                        "schema": "segment",
+                        "schema": "bucket",
                         "params": {
-                            "field": "source.ip",
+                            "field": "source.ip.keyword",
                             "size": 10,
                             "order": "desc",
                             "orderBy": "1"
@@ -356,22 +351,18 @@ def create_complete_dashboards():
     }
     saved_objects.append(viz_geoip_map)
     
-    # 5. Real-time Events Table
+    # 5. Real-time Events Table (Detailed)
     viz_events_table = {
         "type": "visualization",
         "id": "viz-events-table",
         "attributes": {
-            "title": "Eventos en Tiempo Real",
+            "title": "Logs en Tiempo Real (Detalle)",
             "visState": json.dumps({
-                "title": "Eventos en Tiempo Real",
+                "title": "Logs en Tiempo Real (Detalle)",
                 "type": "table",
                 "params": {
-                    "perPage": 10,
-                    "showPartialRows": False,
-                    "showMeticsAtAllLevels": False,
+                    "perPage": 20,
                     "showTotal": False,
-                    "totalFunc": "sum",
-                    "percentageCol": ""
                 },
                 "aggs": [
                     {
@@ -388,9 +379,29 @@ def create_complete_dashboards():
                         "schema": "bucket",
                         "params": {
                             "field": "@timestamp",
-                            "size": 100,
+                            "size": 50,
                             "order": "desc",
                             "orderBy": "_key"
+                        }
+                    },
+                    {
+                        "id": "3",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "event.dataset.keyword",
+                            "size": 5
+                        }
+                    },
+                    {
+                        "id": "4",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "message.keyword",
+                            "size": 5
                         }
                     }
                 ]
@@ -408,70 +419,18 @@ def create_complete_dashboards():
     }
     saved_objects.append(viz_events_table)
     
-    # 6. Active Alerts Table
+    # 6. Active Alerts Table (Detailed)
     viz_alerts_table = {
         "type": "visualization",
         "id": "viz-alerts-table",
         "attributes": {
-            "title": "Alertas Activas",
+            "title": "Alertas Activas Detalladas",
             "visState": json.dumps({
-                "title": "Alertas Activas",
+                "title": "Alertas Activas Detalladas",
                 "type": "table",
                 "params": {
-                    "perPage": 20,
-                    "showPartialRows": False,
-                    "showMeticsAtAllLevels": False,
+                    "perPage": 10,
                     "showTotal": False,
-                    "totalFunc": "sum",
-                    "percentageCol": ""
-                },
-                "aggs": [
-                    {
-                        "id": "1",
-                        "enabled": True,
-                        "type": "count",
-                        "schema": "metric",
-                        "params": {}
-                    }
-                ]
-            }),
-            "uiStateJSON": "{}",
-            "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"event.category": "threat"}},
-                                {"range": {"@timestamp": {"gte": "now-7d"}}}
-                            ]
-                        }
-                    },
-                    "filter": [],
-                    "sort": [{"@timestamp": {"order": "desc"}}]
-                })
-            }
-        }
-    }
-    saved_objects.append(viz_alerts_table)
-    
-    # 7. Top Users
-    viz_top_users = {
-        "type": "visualization",
-        "id": "viz-top-users",
-        "attributes": {
-            "title": "Top Usuarios con Eventos",
-            "visState": json.dumps({
-                "title": "Top Usuarios con Eventos",
-                "type": "histogram",
-                "params": {
-                    "grid": {"categoryLines": False, "valueAxis": "ValueAxis-1"},
-                    "categoryAxes": [{"id": "CategoryAxis-1", "type": "category", "position": "left", "show": True, "style": {}, "scale": {"type": "linear"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "valueAxes": [{"id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "bottom", "show": True, "style": {}, "scale": {"type": "linear", "mode": "normal"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "seriesParams": [{"show": True, "type": "bars", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1"}],
-                    "addLegend": False,
-                    "addTooltip": True,
-                    "legendPosition": "right"
                 },
                 "aggs": [
                     {
@@ -485,9 +444,84 @@ def create_complete_dashboards():
                         "id": "2",
                         "enabled": True,
                         "type": "terms",
-                        "schema": "segment",
+                        "schema": "bucket",
                         "params": {
-                            "field": "user.name",
+                            "field": "siem.severity.keyword",
+                            "size": 5
+                        }
+                    },
+                    {
+                        "id": "3",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "event.action.keyword",
+                            "size": 10
+                        }
+                    },
+                    {
+                        "id": "4",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "event.dataset.keyword",
+                            "size": 5
+                        }
+                    }
+                ]
+            }),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": {
+                "searchSourceJSON": json.dumps({
+                    "index": "logs-*",
+                    "query": {
+                        "bool": {
+                            "should": [
+                                {"term": {"siem.severity.keyword": "high"}},
+                                {"term": {"siem.severity.keyword": "medium"}},
+                                {"term": {"siem.severity.keyword": "low"}}
+                            ],
+                            "minimum_should_match": 1
+                        }
+                    },
+                    "filter": [],
+                    "sort": [{"@timestamp": {"order": "desc"}}]
+                })
+            }
+        }
+    }
+    saved_objects.append(viz_alerts_table)
+    
+    # 7. Top Users (Table)
+    viz_top_users = {
+        "type": "visualization",
+        "id": "viz-top-users",
+        "attributes": {
+            "title": "Top Usuarios con más Eventos",
+            "visState": json.dumps({
+                "title": "Top Usuarios con más Eventos",
+                "type": "table",
+                "params": {
+                    "perPage": 10,
+                    "showTotal": False,
+                },
+                "aggs": [
+                    {
+                        "id": "1",
+                        "enabled": True,
+                        "type": "count",
+                        "schema": "metric",
+                        "params": {}
+                    },
+                    {
+                        "id": "2",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "user.name.keyword",
                             "size": 10,
                             "order": "desc",
                             "orderBy": "1"
@@ -527,8 +561,8 @@ def create_complete_dashboards():
     operational_panels = [
         {"id": "viz-top-users", "gridData": {"x": 0, "y": 0, "w": 24, "h": 15}},
         {"id": "viz-top-ips", "gridData": {"x": 24, "y": 0, "w": 24, "h": 15}},
-        {"id": "viz-alerts-table", "gridData": {"x": 0, "y": 15, "w": 48, "h": 18}},
-        {"id": "viz-events-table", "gridData": {"x": 0, "y": 33, "w": 48, "h": 20}},
+        {"id": "viz-alerts-table", "gridData": {"x": 0, "y": 15, "w": 48, "h": 15}},
+        {"id": "viz-events-table", "gridData": {"x": 0, "y": 30, "w": 48, "h": 20}},
     ]
     saved_objects.append(
         build_dashboard(

@@ -280,6 +280,8 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
+      ilm-setup:
+        condition: service_completed_successfully
     networks:
       elastic:
         ipv4_address: 172.20.0.30
@@ -394,8 +396,19 @@ services:
         fi;
 
         echo "";
+        echo "=== Creando ingest pipelines ===";
+        if [ -f /setup/geoip-pipeline.json ]; then
+          curl -s -X PUT --cacert /certs/ca/ca.crt \
+            -u "elastic:$$ELASTIC_PASSWORD" \
+            "https://es01:9200/_ingest/pipeline/geoip-pipeline" \
+            -H "Content-Type: application/json" \
+            -d @/setup/geoip-pipeline.json;
+          echo " ✓ Ingest pipeline: geoip-pipeline creado";
+        fi;
+
+        echo "";
         echo "=== Creando index templates ===";
-        for tpl in siem-syslog siem-nginx siem-auth siem-k8s siem-errors; do
+        for tpl in siem-syslog siem-nginx siem-auth siem-k8s siem-errors logs-mapping; do
           template_file="/setup/template-$$tpl.json";
           if [ -f "$$template_file" ]; then
             curl -s -X PUT --cacert /certs/ca/ca.crt \
@@ -521,7 +534,7 @@ services:
         ipv4_address: 172.20.0.41
     volumes:
       - certs:/certs:ro
-      - ./setup:/app/setup:ro
+      - ./setup:/app/setup
     working_dir: /app
     environment:
       - KIBANA_HOST=https://kibana:5601
@@ -533,6 +546,7 @@ services:
       - INCLUDE_INDEX_PATTERNS=false
     entrypoint: |
       sh -c "
+      sleep 10 &&
       pip install -q requests urllib3 &&
       python setup/create-dashboards-complete.py &&
       python setup/import-dashboards.py
