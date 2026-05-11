@@ -14,7 +14,7 @@
     "value": 15,
     "cardinality": [
       {
-        "field": "url.path",
+        "field": "url.path.keyword",
         "value": 10
       }
     ]
