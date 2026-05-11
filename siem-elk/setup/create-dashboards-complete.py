@@ -5,7 +5,15 @@ Genera dashboards ejecutivo y operacional con visualizaciones completas para Kib
 """
 
 import json
+import os
 from pathlib import Path
+
+
+def get_env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y"}
 
 
 def build_dashboard(dashboard_id, title, description, panel_specs):
@@ -14,12 +22,16 @@ def build_dashboard(dashboard_id, title, description, panel_specs):
 
     for index, panel_spec in enumerate(panel_specs, start=1):
         panel_ref_name = f"panel_{index}"
+        panel_index = str(index)
+        grid_data = dict(panel_spec["gridData"])
+        grid_data.setdefault("i", panel_index)
         panels.append(
             {
                 "version": "8.19.14",
                 "type": "visualization",
-                "gridData": panel_spec["gridData"],
-                "panelIndex": str(index),
+                "gridData": grid_data,
+                "panelIndex": panel_index,
+                "title": panel_spec.get("title", panel_spec["id"]),
                 "embeddableConfig": {},
                 "panelRefName": panel_ref_name,
             }
@@ -64,19 +76,37 @@ def build_dashboard(dashboard_id, title, description, panel_specs):
 
 def create_complete_dashboards():
     """Crea dashboards con visualizaciones para Kibana 8.19.14"""
+
+    logs_data_view_id = os.getenv("LOGS_DATA_VIEW_ID", "logs-*")
+    logs_data_view_title = os.getenv("LOGS_DATA_VIEW_TITLE", "logs-*")
+    metrics_data_view_id = os.getenv("METRICS_DATA_VIEW_ID", "metrics-*")
+    metrics_data_view_title = os.getenv("METRICS_DATA_VIEW_TITLE", "metrics-*")
+    include_index_patterns = get_env_bool("INCLUDE_INDEX_PATTERNS", default=False)
+    include_metrics_data_view = get_env_bool("INCLUDE_METRICS_DATA_VIEW", default=False)
     
     saved_objects = []
     
-    # Index pattern para logs
-    index_pattern = {
-        "type": "index-pattern",
-        "id": "logs-*",
-        "attributes": {
-            "title": "logs-*",
-            "timeFieldName": "@timestamp"
+    if include_index_patterns:
+        index_pattern = {
+            "type": "index-pattern",
+            "id": logs_data_view_id,
+            "attributes": {
+                "title": logs_data_view_title,
+                "timeFieldName": "@timestamp",
+            },
         }
-    }
-    saved_objects.append(index_pattern)
+        saved_objects.append(index_pattern)
+
+        if include_metrics_data_view:
+            metrics_index_pattern = {
+                "type": "index-pattern",
+                "id": metrics_data_view_id,
+                "attributes": {
+                    "title": metrics_data_view_title,
+                    "timeFieldName": "@timestamp",
+                },
+            }
+            saved_objects.append(metrics_index_pattern)
     
     # ─── VISUALIZATIONS ──────────────────────────────────────────────────────
     
@@ -120,7 +150,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": []
                 })
@@ -175,7 +205,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": []
                 })
@@ -197,7 +227,7 @@ def create_complete_dashboards():
                     "grid": {"categoryLines": False, "valueAxis": "ValueAxis-1"},
                     "categoryAxes": [{"id": "CategoryAxis-1", "type": "category", "position": "left", "show": True, "style": {}, "scale": {"type": "linear"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
                     "valueAxes": [{"id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "bottom", "show": True, "style": {}, "scale": {"type": "linear", "mode": "normal"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "seriesParams": [{"show": True, "type": "bars", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1", "drawLinesBetweenPoints": True}],
+                    "seriesParams": [{"show": True, "type": "histogram", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1", "drawLinesBetweenPoints": True}],
                     "addLegend": False,
                     "addTooltip": True,
                     "legendPosition": "right"
@@ -227,7 +257,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": []
                 })
@@ -270,7 +300,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": []
                 })
@@ -321,7 +351,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": [],
                     "sort": [{"@timestamp": {"order": "desc"}}]
@@ -361,7 +391,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {
                         "bool": {
                             "must": [
@@ -391,7 +421,7 @@ def create_complete_dashboards():
                     "grid": {"categoryLines": False, "valueAxis": "ValueAxis-1"},
                     "categoryAxes": [{"id": "CategoryAxis-1", "type": "category", "position": "left", "show": True, "style": {}, "scale": {"type": "linear"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
                     "valueAxes": [{"id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "bottom", "show": True, "style": {}, "scale": {"type": "linear", "mode": "normal"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
-                    "seriesParams": [{"show": True, "type": "bars", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1"}],
+                    "seriesParams": [{"show": True, "type": "histogram", "stacked": "none", "mode": "normal", "valueAxis": "ValueAxis-1"}],
                     "addLegend": False,
                     "addTooltip": True,
                     "legendPosition": "right"
@@ -421,7 +451,7 @@ def create_complete_dashboards():
             "uiStateJSON": "{}",
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
+                    "index": logs_data_view_id,
                     "query": {"match_all": {}},
                     "filter": []
                 })
@@ -470,8 +500,12 @@ def create_complete_dashboards():
         for item in saved_objects:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
     
-    print(f"✓ Dashboards completos creados para Kibana 8.19.14")
+    print("✓ Dashboards completos creados para Kibana 8.19.14")
     print(f"  Archivo: {output_path}")
+    print(f"  Data view logs: {logs_data_view_id} ({logs_data_view_title})")
+    print(f"  Incluir index patterns: {include_index_patterns}")
+    if include_index_patterns and include_metrics_data_view:
+        print(f"  Data view metrics: {metrics_data_view_id} ({metrics_data_view_title})")
     print(f"  Visualizaciones: {sum(1 for d in saved_objects if d['type'] == 'visualization')}")
     print(f"  Dashboards: {sum(1 for d in saved_objects if d['type'] == 'dashboard')}")
 

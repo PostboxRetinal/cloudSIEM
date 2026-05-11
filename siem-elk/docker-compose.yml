@@ -1,7 +1,7 @@
 # =============================================================================
 # SIEM Platform — Elastic Stack (ELK) — 3-Node Cluster
 # Proyecto 8: Plataforma de análisis de logs y seguridad
-# VERSIÓN UNIVERSAL 
+# VERSIÓN UNIVERSAL
 # =============================================================================
 # Uso:
 #   1. Crear archivo .env con las variables requeridas
@@ -40,7 +40,7 @@ services:
     container_name: siem-setup
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
-    user: '0'
+    user: "0"
     networks:
       - elastic
     command: >
@@ -106,7 +106,7 @@ services:
       elastic:
         ipv4_address: 172.20.0.10
     ports:
-      - '9200:9200'
+      - "9200:9200"
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - es01-data:/usr/share/elasticsearch/data
@@ -133,7 +133,7 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     healthcheck:
       test: [
-          'CMD-SHELL',
+          "CMD-SHELL",
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
           grep -q 'missing authentication'",
         ]
@@ -177,7 +177,7 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     healthcheck:
       test: [
-          'CMD-SHELL',
+          "CMD-SHELL",
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
           grep -q 'missing authentication'",
         ]
@@ -221,7 +221,7 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     healthcheck:
       test: [
-          'CMD-SHELL',
+          "CMD-SHELL",
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 |
           grep -q 'missing authentication'",
         ]
@@ -246,7 +246,7 @@ services:
       elastic:
         ipv4_address: 172.20.0.20
     ports:
-      - '5601:5601'
+      - "5601:5601"
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
@@ -264,7 +264,7 @@ services:
     healthcheck:
       test:
         [
-          'CMD-SHELL',
+          "CMD-SHELL",
           "curl -s -o /dev/null -w '%{http_code}' --cacert /usr/share/kibana/config/certs/ca/ca.crt https://localhost:5601 | grep -q '^302$'",
         ]
       interval: 20s
@@ -284,10 +284,10 @@ services:
       elastic:
         ipv4_address: 172.20.0.30
     ports:
-      - '5044:5044'
-      - '5514:5514/udp'
-      - '5515:5514/tcp'
-      - '9600:9600'
+      - "5044:5044"
+      - "5514:5514/udp"
+      - "5515:5514/tcp"
+      - "9600:9600"
     volumes:
       - certs:/usr/share/logstash/config/certs
       - logstash-data:/usr/share/logstash/data
@@ -301,7 +301,7 @@ services:
       - ELASTIC_HOSTS=https://es01:9200
       - LS_JAVA_OPTS=-Xms512m -Xmx512m
     healthcheck:
-      test: ['CMD-SHELL', "curl -s http://localhost:9600 | grep -q 'green'"]
+      test: ["CMD-SHELL", "curl -s http://localhost:9600 | grep -q 'green'"]
       interval: 10s
       timeout: 10s
       retries: 60
@@ -336,12 +336,7 @@ services:
       - ELASTIC_HOSTS=https://es01:9200
       - LOGSTASH_HOST=logstash:5044
       - KIBANA_HOST=https://kibana:5601
-    command:
-      [
-        'filebeat',
-        '-e',
-        '--strict.perms=false',
-      ]
+    command: ["filebeat", "-e", "--strict.perms=false"]
     cap_add:
       - DAC_READ_SEARCH
 
@@ -419,7 +414,7 @@ services:
           -u "elastic:$$ELASTIC_PASSWORD" \
           "https://es01:9200/_cluster/health?pretty";
       '
-    restart: 'no'
+    restart: "no"
 
   # ─── Importación automática de reglas Kibana ───────────────────────────────
   rules-import:
@@ -480,7 +475,36 @@ services:
         fi
 
         echo "  ✓ Reglas importadas"
-    restart: 'no'
+    restart: "no"
+
+  # ─── Creación de Data Views en Kibana ───────────────────────────────────
+  data-views-setup:
+    image: python:3.11-slim
+    container_name: siem-data-views-setup
+    user: "0"
+    depends_on:
+      kibana:
+        condition: service_healthy
+    networks:
+      elastic:
+        ipv4_address: 172.20.0.42
+    volumes:
+      - certs:/certs:ro
+      - ./setup:/app/setup:ro
+    working_dir: /app
+    environment:
+      - KIBANA_HOST=https://kibana:5601
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - CACERT=/certs/ca/ca.crt
+      - LOGS_DATA_VIEW_ID=logs-*
+      - LOGS_DATA_VIEW_TITLE=logs-*
+    entrypoint: |
+      sh -c "
+      pip install -q requests urllib3 &&
+      python setup/create-data-views.py
+      "
+    restart: "no"
 
   # ─── Importación automática de dashboards Kibana ──────────────────────────
   dashboards-import:
@@ -490,6 +514,8 @@ services:
     depends_on:
       kibana:
         condition: service_healthy
+      data-views-setup:
+        condition: service_completed_successfully
     networks:
       elastic:
         ipv4_address: 172.20.0.41
@@ -502,9 +528,34 @@ services:
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - CACERT=/certs/ca/ca.crt
+      - LOGS_DATA_VIEW_ID=logs-*
+      - LOGS_DATA_VIEW_TITLE=logs-*
+      - INCLUDE_INDEX_PATTERNS=false
     entrypoint: |
       sh -c "
       pip install -q requests urllib3 &&
+      python setup/create-dashboards-complete.py &&
       python setup/import-dashboards.py
       "
-    restart: 'no'
+    restart: "no"
+
+  # ─── Generación automática de logs de prueba ───────────────────────────
+  log-generator:
+    image: python:3.11-slim
+    container_name: siem-log-generator
+    user: "0"
+    depends_on:
+      logstash:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - ./setup:/app/setup:ro
+      - ./logs:/var/log
+    working_dir: /app
+    entrypoint: |
+      sh -c "
+      sleep 15 &&
+      python setup/generate-test-logs.py --source all
+      "
+    restart: "no"
