@@ -109,7 +109,7 @@ def create_complete_dashboards():
                         "type": "terms",
                         "schema": "segment",
                         "params": {
-                            "field": "event.action",
+                            "field": "event.category.keyword",
                             "size": 5,
                             "order": "desc",
                             "orderBy": "1"
@@ -236,7 +236,7 @@ def create_complete_dashboards():
     }
     saved_objects.append(viz_top_ips)
     
-    # 4. System Health KPI
+    # 4. System Health KPI (Gauge)
     viz_health = {
         "type": "visualization",
         "id": "viz-system-health",
@@ -244,26 +244,51 @@ def create_complete_dashboards():
             "title": "Salud General del Sistema",
             "visState": json.dumps({
                 "title": "Salud General del Sistema",
-                "type": "metric",
+                "type": "gauge",
                 "params": {
-                    "addLegend": False,
+                    "type": "gauge",
                     "addTooltip": True,
-                    "fontSize": 60,
-                    "handleNoResults": True,
-                    "colorFullBackground": False,
-                    "coloring": "Shades",
-                    "invertColors": False,
-                    "thresholdStyle": "background",
-                    "thresholds": "1000,10000",
-                    "sparkline": {"show": True, "full": True, "valueSparklineMode": "gray"}
+                    "addLegend": False,
+                    "isDonut": True,
+                    "gauge": {
+                        "verticalSplit": False,
+                        "extendRange": True,
+                        "percentageMode": False,
+                        "gaugeType": "Arc",
+                        "gaugeStyle": "Full",
+                        "backStyle": "Full",
+                        "orientation": "vertical",
+                        "colorSchema": "Green to Red",
+                        "gaugeColorMode": "Labels",
+                        "colorsRange": [
+                            {"from": 0, "to": 1},
+                            {"from": 1, "to": 2},
+                            {"from": 2, "to": 3}
+                        ],
+                        "invertColors": True,
+                        "labels": {"show": True, "color": "black"},
+                        "scale": {"show": True, "labels": False, "color": "#333"},
+                        "type": "meter",
+                        "style": {
+                            "bgWidth": 0.9,
+                            "width": 0.9,
+                            "mask": False,
+                            "bgMask": False,
+                            "maskBars": 50,
+                            "bgFill": "#eee",
+                            "bgColor": False,
+                            "subText": "Sistemas",
+                            "fontSize": 60
+                        }
+                    }
                 },
                 "aggs": [
                     {
                         "id": "1",
                         "enabled": True,
-                        "type": "count",
+                        "type": "cardinality",
                         "schema": "metric",
-                        "params": {}
+                        "params": {"field": "host.name.keyword"}
                     }
                 ]
             }),
@@ -278,6 +303,58 @@ def create_complete_dashboards():
         }
     }
     saved_objects.append(viz_health)
+    
+    # Map
+    viz_geoip_map = {
+        "type": "visualization",
+        "id": "viz-geoip-map",
+        "attributes": {
+            "title": "Mapa de IPs Sospechosas",
+            "visState": json.dumps({
+                "title": "Mapa de IPs Sospechosas",
+                "type": "tile_map",
+                "params": {
+                    "addTooltip": True,
+                    "mapType": "Scaled Circle Markers",
+                    "isDesaturated": True,
+                    "colorSchema": "Yellow to Red",
+                    "heatMaxZoom": 16,
+                    "heatMinOpacity": 0.1,
+                    "heatRadius": 25,
+                    "heatBlur": 15,
+                    "heatNormalizeData": True
+                },
+                "aggs": [
+                    {
+                        "id": "1",
+                        "enabled": True,
+                        "type": "count",
+                        "schema": "metric",
+                        "params": {}
+                    },
+                    {
+                        "id": "2",
+                        "enabled": True,
+                        "type": "geohash_grid",
+                        "schema": "segment",
+                        "params": {
+                            "field": "source.geo.location",
+                            "autoPrecision": True
+                        }
+                    }
+                ]
+            }),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": {
+                "searchSourceJSON": json.dumps({
+                    "index": "logs-*",
+                    "query": {"match_all": {}},
+                    "filter": []
+                })
+            }
+        }
+    }
+    saved_objects.append(viz_geoip_map)
     
     # 5. Real-time Events Table
     viz_events_table = {
@@ -433,10 +510,10 @@ def create_complete_dashboards():
     # ─── DASHBOARDS ──────────────────────────────────────────────────────────
 
     executive_panels = [
-        {"id": "viz-system-health", "gridData": {"x": 0, "y": 0, "w": 24, "h": 12}},
-        {"id": "viz-top-threats", "gridData": {"x": 24, "y": 0, "w": 24, "h": 12}},
-        {"id": "viz-alert-trend", "gridData": {"x": 0, "y": 12, "w": 48, "h": 12}},
-        {"id": "viz-top-ips", "gridData": {"x": 0, "y": 24, "w": 48, "h": 15}},
+        {"id": "viz-system-health", "gridData": {"x": 0, "y": 0, "w": 24, "h": 15}},
+        {"id": "viz-top-threats", "gridData": {"x": 24, "y": 0, "w": 24, "h": 15}},
+        {"id": "viz-alert-trend", "gridData": {"x": 0, "y": 15, "w": 24, "h": 15}},
+        {"id": "viz-geoip-map", "gridData": {"x": 24, "y": 15, "w": 24, "h": 15}},
     ]
     saved_objects.append(
         build_dashboard(
