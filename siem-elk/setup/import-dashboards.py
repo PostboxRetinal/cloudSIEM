@@ -19,9 +19,6 @@ ELASTIC_USER = os.getenv("ELASTIC_USER", "elastic")
 ELASTIC_PASS = os.getenv("ELASTIC_PASSWORD", "SiemElastic2026!")
 CACERT = os.getenv("CACERT", "./setup/certs/ca/ca.crt")
 FILE = Path(__file__).resolve().parent / "dashboards" / "executive-operational-dashboards.ndjson"
-WAIT_KIBANA_TIMEOUT = int(os.getenv("WAIT_KIBANA_TIMEOUT", "300"))
-IMPORT_TIMEOUT = int(os.getenv("IMPORT_TIMEOUT", "120"))
-IMPORT_RETRIES = int(os.getenv("IMPORT_RETRIES", "3"))
 
 G = "\033[92m"
 R = "\033[91m"
@@ -38,7 +35,7 @@ def kibana_session():
     return client
 
 
-def wait_for_kibana(client, timeout=WAIT_KIBANA_TIMEOUT):
+def wait_for_kibana(client, timeout=180):
     print(f"\n{W}Esperando a que Kibana esté disponible...{X}")
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -67,22 +64,13 @@ def import_dashboards():
 
     print(f"  Importando desde: {W}{FILE.name}{X}")
 
-    response = None
-    for attempt in range(1, IMPORT_RETRIES + 1):
-        with FILE.open("rb") as file_handle:
-            response = client.post(
-                f"{KIBANA_URL}/api/saved_objects/_import",
-                params={"overwrite": "true"},
-                files={"file": (FILE.name, file_handle, "application/x-ndjson")},
-                timeout=IMPORT_TIMEOUT,
-            )
-
-        if response.status_code == 200:
-            break
-
-        if attempt < IMPORT_RETRIES:
-            print(f"  {Y}⚠{X}  Reintentando importacion ({attempt}/{IMPORT_RETRIES})...")
-            time.sleep(5)
+    with FILE.open("rb") as file_handle:
+        response = client.post(
+            f"{KIBANA_URL}/api/saved_objects/_import",
+            params={"overwrite": "true"},
+            files={"file": (FILE.name, file_handle, "application/x-ndjson")},
+            timeout=30,
+        )
 
     if response.status_code != 200:
         print(f"  {R}✗{X} Error {response.status_code}")

@@ -16,6 +16,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+BASE_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+
 # ─── IPs de muestra (mezcla pública y privada) ────────────────────────────────
 EXTERNAL_IPS = [
     "185.220.101.34", "89.248.167.131", "194.165.16.11",
@@ -229,10 +231,10 @@ def main():
                         default="none", help="Tipo de ataque a simular")
     parser.add_argument("--count",  type=int, default=30,
                         help="Número de entradas de log normales")
-    parser.add_argument("--syslog-path", default="/var/log/syslog")
-    parser.add_argument("--auth-path",   default="/var/log/auth.log")
-    parser.add_argument("--nginx-path",  default="/var/log/nginx/access.log")
-    parser.add_argument("--k8s-path",    default="/var/log/containers/test-pod.log")
+    parser.add_argument("--syslog-path", default=str(BASE_LOG_DIR / "syslog"))
+    parser.add_argument("--auth-path",   default=str(BASE_LOG_DIR / "auth.log"))
+    parser.add_argument("--nginx-path",  default=str(BASE_LOG_DIR / "nginx" / "access.log"))
+    parser.add_argument("--k8s-path",    default=str(BASE_LOG_DIR / "containers" / "test-pod.log"))
     args = parser.parse_args()
 
     attacker_ip = random.choice(EXTERNAL_IPS)

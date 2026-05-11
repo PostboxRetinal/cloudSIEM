@@ -13,7 +13,17 @@
         "client.ip": { "type": "ip" },
         "source.ip": { "type": "ip" },
         "http.response.status_code": { "type": "long" },
-        "event.dataset": { "type": "constant_keyword", "value": "nginx.access" }
+        "event.dataset": { "type": "constant_keyword", "value": "nginx.access" },
+        "url": {
+          "properties": {
+            "path": {
+              "type": "text",
+              "fields": {
+                "keyword": { "type": "keyword", "ignore_above": 1024 }
+              }
+            }
+          }
+        }
       }
     }
   },
