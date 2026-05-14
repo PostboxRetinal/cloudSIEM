@@ -1,2 +1,13 @@
 .env
 siem-elk/setup/__pycache__/
+# Ignorar variables de entorno y certificados locales del entorno de desarrollo
+siem-elk/.env
+siem-elk/certs/
+siem-elk/*-data/
+siem-elk/elasticsearch/**/data/
+siem-elk/kibana-data/
+siem-elk/logstash-data/
+# Logs y runtime
+siem-elk/logs/
+filebeat/logs/
+USAGE.md

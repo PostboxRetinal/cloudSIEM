@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 
-def build_dashboard(dashboard_id, title, description, panel_specs):
+def build_dashboard(dashboard_id, title, description, panel_specs, refresh_interval={"pause": True, "value": 0}):
     panels = []
     references = []
 
@@ -48,7 +48,7 @@ def build_dashboard(dashboard_id, title, description, panel_specs):
                 }
             ),
             "panelsJSON": json.dumps(panels, ensure_ascii=False),
-            "refreshInterval": {"pause": True, "value": 0},
+            "refreshInterval": refresh_interval,
             "timeRestore": False,
             "kibanaSavedObjectMeta": {
                 "searchSourceJSON": json.dumps(
@@ -555,6 +555,7 @@ def create_complete_dashboards():
             "Executive - Información de Seguridad",
             "Panel ejecutivo con KPIs y amenazas para audiencia no técnica",
             executive_panels,
+            refresh_interval={"pause": False, "value": 5000},
         )
     )
 
