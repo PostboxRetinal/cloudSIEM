@@ -354,7 +354,7 @@ def main():
     parser.add_argument("--cacert",   default=CACERT)
     args = parser.parse_args()
 
-    print(f"{W}SIEM Rules Manager{X} — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"{W}SIEM Rules Manager{X} — {datetime.now(timezone(timedelta(hours=-5))).strftime('%Y-%m-%d %H:%M UTC-5')}")
     print(f"Kibana: {args.kibana} | ES: {args.es}")
     KIBANA_URL = args.kibana
     ES_URL       = args.es

@@ -16,7 +16,7 @@ import json
 import sys
 import urllib3
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -229,7 +229,7 @@ def main():
 
     print(f"\n{BOLD}{'='*50}")
     print("  Verificación ECS — SIEM Elastic Stack")
-    print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    print(f"  {datetime.now(timezone(timedelta(hours=-5))).strftime('%Y-%m-%d %H:%M:%S UTC-5')}")
     print(f"{'='*50}{RESET}")
     print(f"  Host:   {args.host}")
     print(f"  Usuario: {args.user}")
