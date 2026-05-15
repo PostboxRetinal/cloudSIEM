@@ -1,7 +1,8 @@
 #!/bin/bash
 # ── Verificar estado del cluster ELK ─────────────────────────────────────────
 set -e
-source ../.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../.env"
 
 ES_URL="https://localhost:9200"
 AUTH="elastic:${ELASTIC_PASSWORD}"
@@ -12,23 +13,23 @@ echo "╚═══════════════════════�
 echo ""
 
 echo "── Estado del cluster ─────────────────────"
-curl -s -k -u $AUTH "$ES_URL/_cluster/health?pretty"
+curl -s -k -u "$AUTH" "$ES_URL/_cluster/health?pretty"
 
 echo ""
 echo "── Nodos activos ──────────────────────────"
-curl -s -k -u $AUTH "$ES_URL/_cat/nodes?v"
+curl -s -k -u "$AUTH" "$ES_URL/_cat/nodes?v"
 
 echo ""
 echo "── ILM Policy ─────────────────────────────"
-curl -s -k -u $AUTH "$ES_URL/_ilm/policy/siem-logs-policy?pretty" | head -30
+curl -s -k -u "$AUTH" "$ES_URL/_ilm/policy/siem-logs-policy?pretty" | head -30
 
 echo ""
 echo "── Índices existentes ──────────────────────"
-curl -s -k -u $AUTH "$ES_URL/_cat/indices?v&s=index"
+curl -s -k -u "$AUTH" "$ES_URL/_cat/indices?v&s=index"
 
 echo ""
 echo "── Fase ILM de cada índice ─────────────────"
-curl -s -k -u $AUTH "$ES_URL/*/_ilm/explain?pretty" | (python3 -c "
+curl -s -k -u "$AUTH" "$ES_URL/*/_ilm/explain?pretty" | (python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for idx, info in data.get('indices', {}).items():

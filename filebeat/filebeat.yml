@@ -212,7 +212,6 @@ filebeat.inputs:
             }
 
 # ─── Módulos de Filebeat ─────────────────────────────────────────────────────
-# Desactivados: los inputs manuales envían a Logstash, donde se hace el parsing.
 filebeat.modules: []
 
 # ─── Output: Logstash (enriquecimiento y routing) ────────────────────────────
@@ -232,7 +231,6 @@ setup.kibana:
   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
 setup.ilm.enabled:        false
-
 setup.dashboards.enabled: false
 
 # ─── Template de índice ───────────────────────────────────────────────────────
@@ -240,36 +238,6 @@ setup.template.enabled:       false
 setup.template.name:          "filebeat"
 setup.template.pattern:       "filebeat-*"
 setup.template.overwrite:     true
-
-# ─── Procesadores globales ────────────────────────────────────────────────────
-# processors:
-#   # Metadata del host que corre Filebeat
-#   - add_host_metadata:
-#       when.not.contains.tags: forwarded
-#       netinfo.enabled: true
-
-#   # Metadata de cloud (AWS/GCP/Azure si aplica)
-#   - add_cloud_metadata:
-#       timeout: 3s
-
-#   # Agregar campos ECS base
-#   - add_fields:
-#       target: ecs
-#       fields:
-#         version: "8.0"
-
-#   # Eliminar campos internos de Filebeat que no necesitamos en ES
-#   - drop_fields:
-#       fields:
-#         - "agent.ephemeral_id"
-#         - "log.offset"
-#       ignore_missing: true
-
-#   # Throttle: descartar eventos duplicados en ventana de 1s
-#   - drop_event:
-#       when:
-#         equals:
-#           type: "drop"
 
 # ─── Logging de Filebeat ──────────────────────────────────────────────────────
 logging.level:    warning
@@ -282,13 +250,6 @@ logging.files:
 
 # ─── Métricas internas (monitoring) ──────────────────────────────────────────
 monitoring.enabled: false
-# Para habilitar monitoring interno, descomentar:
-# monitoring.cluster_uuid: "${CLUSTER_UUID}"
-# monitoring.elasticsearch:
-#   hosts: ["${ELASTIC_HOSTS}"]
-#   username: "${ELASTIC_USER}"
-#   password: "${ELASTIC_PASSWORD}"
-#   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
 # ─── HTTP endpoint (healthcheck) ─────────────────────────────────────────────
 http.enabled: true

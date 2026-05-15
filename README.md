@@ -28,18 +28,19 @@ CloudSIEM es una plataforma SIEM académica basada en Elastic Stack para central
 El despliegue en Linux con Podman usa el archivo base y un override específico para Podman:
 
 ```bash
-cd siem-elk
 systemctl --user start podman.socket
-podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build
+HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" \
+  podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build
 ```
 
 Para detener el entorno:
 
 ```bash
-podman compose -f docker-compose.yml -f docker-compose-podman.yml down
+HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" \
+  podman-compose -f docker-compose.yml -f docker-compose-podman.yml down
 ```
 
-El override `docker-compose-podman.yml` configura relabeling SELinux para bind mounts, `userns_mode: keep-id` en Filebeat y el socket rootless de Podman desde `$XDG_RUNTIME_DIR/podman/podman.sock`.
+El override `docker-compose-podman.yml` configura `userns_mode: keep-id` en Filebeat y relabeling SELinux para bind mounts. El socket rootless de Podman se pasa con `HOST_SOCKET_PATH`.
 
 ## Arquitectura propuesta
 
@@ -133,16 +134,15 @@ A medida que avance la implementación, este repositorio debería incorporar una
 ├── .github/
 │   ├── AGENTS.md
 │   └── copilot-instructions.md
-└── siem-elk/
-    ├── docker-compose.yml
-    ├── docker-compose-podman.yml
-    ├── filebeat/
-    ├── logstash/
-    ├── kibana/
-    ├── setup/
-    ├── rules/
-    ├── docs/
-    └── logs/
+├── docker-compose.yml
+├── docker-compose-podman.yml
+├── filebeat/
+├── logstash/
+├── kibana/
+├── setup/
+├── rules/
+├── docs/
+└── logs/
 ```
 
 ## Flujo de ramas

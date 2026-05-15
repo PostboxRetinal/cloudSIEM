@@ -5,7 +5,7 @@
 # =============================================================================
 # Uso:
 #   1. Crear archivo .env con las variables requeridas
-#   2. En Linux con Podman: `podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build`
+#   2. En Linux con Podman: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`
 #   3. Esperar ~90s y verificar: bash setup/verify-cluster.sh
 # =============================================================================
 
@@ -325,12 +325,7 @@ services:
     volumes:
       - certs:/usr/share/filebeat/certs:ro
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - type: bind
-        source: ${HOST_SOCKET_PATH:-/var/run/docker.sock}
-        target: /var/run/docker.sock
-        read_only: true
-        bind:
-          selinux: z
+      - ${HOST_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro
       - ./logs/:/var/log:ro
     environment:
       - ELASTIC_USER=elastic

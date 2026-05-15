@@ -2,26 +2,26 @@
 
 ## Repo Shape
 - Read `README.md` and `.github/copilot-instructions.md` first; they define the project scope, required detections, and documentation language.
-- The real stack lives in `siem-elk/`; the repository root is mostly guidance.
+- The stack lives at the repository root; do not assume a nested `siem-elk/` directory.
 - `develop` is the working branch; `main` is stable and PR-only.
 
 ## Run The Stack
-- Use explicit Compose files from `siem-elk/`: `podman compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
-- Stop the stack with the same file order: `podman compose -f docker-compose.yml -f docker-compose-podman.yml down`.
-- `docker-compose.yml` is the universal base; `docker-compose-podman.yml` is the Linux + Podman override.
-- The Podman override mounts `$XDG_RUNTIME_DIR/podman/podman.sock` at `/var/run/docker.sock` for Filebeat metadata enrichment.
+- Use explicit Compose files from the repository root: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
+- Stop the stack with the same file order: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml down`.
+- `docker-compose.yml` is the universal base; `docker-compose-podman.yml` is the Linux + Podman override and owns SELinux relabeling.
+- `HOST_SOCKET_PATH` should point at `$XDG_RUNTIME_DIR/podman/podman.sock` for Filebeat metadata enrichment.
 - The cluster bootstrap takes about 90 seconds before health checks are meaningful.
 
 ## Verify
-- From `siem-elk/`: `bash setup/verify-cluster.sh`, `python3 setup/check-cluster-health.py`, `python3 setup/verify-ecs-mapping.py`.
-- From `siem-elk/logstash/`: `bash test-pipeline.sh`.
+- From the repository root: `bash setup/verify-cluster.sh`, `python3 setup/check-cluster-health.py`, `python3 setup/verify-ecs-mapping.py`.
+- From the repository root: `bash logstash/test-pipeline.sh`.
 - Run Filebeat config checks with Podman, not Docker:
   `podman run --rm --user 0 -e ELASTIC_PASSWORD=test -v "$PWD/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,Z" docker.elastic.co/beats/filebeat:9.3.3 filebeat test config -e -c /usr/share/filebeat/filebeat.yml`
 
 ## Filebeat And Logs
 - Filebeat configs should stay on `filestream`; use `parsers` for multiline and container parsing.
 - Do not reintroduce `type: log` or `type: container` in Filebeat configs.
-- `siem-elk/logs/` contains live sample inputs for Filebeat.
+- `logs/` contains live sample inputs for Filebeat.
 - `setup/generate-test-logs.py` writes directly to log files; its defaults point at `/var/log/...`, so override paths before using it on the host.
 
 ## Scripts With Relative Paths

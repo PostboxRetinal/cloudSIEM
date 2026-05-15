@@ -1,0 +1,59 @@
+x-podman:
+  in_pod: false
+
+services:
+  es01:
+    volumes:
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro,z
+
+  es02:
+    volumes:
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro,z
+
+  es03:
+    volumes:
+      - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro,z
+
+  kibana:
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,z
+
+  logstash:
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,z
+      - ./logstash/config/log4j2.properties:/usr/share/logstash/config/log4j2.properties:ro,z
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,z
+      - ./logstash/patterns:/usr/share/logstash/patterns:ro,z
+
+  filebeat:
+    userns_mode: keep-id
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,z
+      - ${HOST_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro,z
+      - ./logs/:/var/log:ro,z
+
+  cleanup-indices:
+    volumes:
+      - ./setup:/setup:ro,z
+
+  ilm-setup:
+    volumes:
+      - ./setup:/setup:ro,z
+
+  rules-import:
+    volumes:
+      - ./rules:/rules:rw,z
+      - ./setup:/setup:ro,z
+
+  data-views-setup:
+    volumes:
+      - ./setup:/app/setup:ro,z
+
+  dashboards-import:
+    volumes:
+      - ./setup:/app/setup:z
+
+  log-generator:
+    volumes:
+      - ./setup:/app/setup:ro,z
+      - ./logs:/var/log:z
