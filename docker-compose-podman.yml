@@ -29,7 +29,7 @@ services:
     userns_mode: keep-id
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro,z
-      - ${HOST_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro,z
+      - ${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR must be set}/podman/podman.sock:/var/run/docker.sock:ro,z
       - ./logs/:/var/log:ro,z
 
   cleanup-indices:
@@ -56,4 +56,4 @@ services:
   log-generator:
     volumes:
       - ./setup:/app/setup:ro,z
-      - ./logs:/var/log:z
+      - ./logs:/app/logs:z

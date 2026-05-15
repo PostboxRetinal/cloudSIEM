@@ -5,7 +5,7 @@
 # =============================================================================
 # Uso:
 #   1. Crear archivo .env con las variables requeridas
-#   2. En Linux con Podman: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`
+#   2. En Linux con Podman: `podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`
 #   3. Esperar ~90s y verificar: bash setup/verify-cluster.sh
 # =============================================================================
 
@@ -593,7 +593,7 @@ services:
       - elastic
     volumes:
       - ./setup:/app/setup:ro
-      - ./logs:/var/log
+      - ./logs:/app/logs
     working_dir: /app
     entrypoint: |
       sh -c "

@@ -29,18 +29,16 @@ El despliegue en Linux con Podman usa el archivo base y un override específico 
 
 ```bash
 systemctl --user start podman.socket
-HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" \
-  podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build
+podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build
 ```
 
 Para detener el entorno:
 
 ```bash
-HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" \
-  podman-compose -f docker-compose.yml -f docker-compose-podman.yml down
+podman-compose -f docker-compose.yml -f docker-compose-podman.yml down
 ```
 
-El override `docker-compose-podman.yml` configura `userns_mode: keep-id` en Filebeat y relabeling SELinux para bind mounts. El socket rootless de Podman se pasa con `HOST_SOCKET_PATH`.
+El override `docker-compose-podman.yml` configura `userns_mode: keep-id` en Filebeat, relabeling SELinux para bind mounts y el socket rootless de Podman desde `$XDG_RUNTIME_DIR/podman/podman.sock`.
 
 ## Arquitectura propuesta
 

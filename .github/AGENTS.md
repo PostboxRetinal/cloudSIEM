@@ -6,10 +6,10 @@
 - `develop` is the working branch; `main` is stable and PR-only.
 
 ## Run The Stack
-- Use explicit Compose files from the repository root: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
-- Stop the stack with the same file order: `HOST_SOCKET_PATH="$XDG_RUNTIME_DIR/podman/podman.sock" podman-compose -f docker-compose.yml -f docker-compose-podman.yml down`.
+- Use explicit Compose files from the repository root: `podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
+- Stop the stack with the same file order: `podman-compose -f docker-compose.yml -f docker-compose-podman.yml down`.
 - `docker-compose.yml` is the universal base; `docker-compose-podman.yml` is the Linux + Podman override and owns SELinux relabeling.
-- `HOST_SOCKET_PATH` should point at `$XDG_RUNTIME_DIR/podman/podman.sock` for Filebeat metadata enrichment.
+- The Podman override maps `$XDG_RUNTIME_DIR/podman/podman.sock` to `/var/run/docker.sock` for Filebeat metadata enrichment.
 - The cluster bootstrap takes about 90 seconds before health checks are meaningful.
 
 ## Verify

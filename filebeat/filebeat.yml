@@ -211,6 +211,45 @@ filebeat.inputs:
               return event;
             }
 
+  # ─── 6. KUBERNETES — Simulated container logs ──────────────────────────────
+  - type: filestream
+    id: k8s-simulated-containers
+    enabled: true
+    paths:
+      - /var/log/containers/*.log
+    encoding: utf-8
+    fields:
+      event.dataset:  kubernetes.container
+      event.module:   kubernetes
+      event.kind:     event
+      event.category: host
+    fields_under_root: true
+    tags: ["kubernetes", "container", "simulated"]
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          message_key: message
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            log.type: k8s_container
+      - script:
+          lang: javascript
+          id:   k8s-simulated-ecs-mapper
+          source: >
+            function process(event) {
+              var pod = event.Get("kubernetes.pod.name");
+              var ns  = event.Get("kubernetes.namespace");
+              var ctr = event.Get("kubernetes.container.name");
+              if (pod) event.Put("orchestrator.resource.name", pod);
+              if (ns)  event.Put("orchestrator.namespace", ns);
+              if (ctr) event.Put("container.name", ctr);
+              event.Put("orchestrator.type", "kubernetes");
+              return event;
+            }
+
 # ─── Módulos de Filebeat ─────────────────────────────────────────────────────
 filebeat.modules: []
 
