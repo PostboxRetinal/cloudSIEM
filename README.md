@@ -122,6 +122,12 @@ Para cada escenario se recomienda documentar:
 - tiempo de detección;
 - acción de respuesta definida en el playbook.
 
+## Integración opcional con Microsoft Sentinel
+
+El repositorio incluye una ruta cloud para detección continua con Microsoft Sentinel. La integración mantiene Elastic como SIEM local y agrega un forwarder que envía eventos normalizados de `logs-*` a una tabla `CloudSIEM_CL` en Log Analytics mediante Azure Monitor Logs Ingestion API.
+
+Los recursos Azure, reglas KQL y comandos CLI están documentados en [`azure/sentinel/README.md`](azure/sentinel/README.md). Esta ruta agrega reglas scheduled de Sentinel para anomalías de autenticación SSH, patrones web sospechosos, port scan, login fuera de horario y rutas sensibles.
+
 ## Estructura esperada del repositorio
 
 A medida que avance la implementación, este repositorio debería incorporar una estructura similar a la siguiente:

@@ -1,0 +1,45 @@
+# =============================================================================
+# Optional Microsoft Sentinel streaming overlay
+# Usage:
+#   set -a; . ./.env.sentinel; set +a
+#   podman-compose -f docker-compose.yml -f docker-compose-podman.yml \
+#     -f docker-compose-sentinel.yml up --build
+# =============================================================================
+
+volumes:
+  sentinel-forwarder-state:
+    driver: local
+
+services:
+  sentinel-forwarder:
+    image: python:3.11-slim
+    container_name: siem-sentinel-forwarder
+    depends_on:
+      es01:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - certs:/certs:ro
+      - ./setup:/app/setup:ro,z
+      - sentinel-forwarder-state:/state
+    working_dir: /app
+    environment:
+      - ES_URL=https://es01:9200
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - CACERT=/certs/ca/ca.crt
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET:-}
+      - SENTINEL_DCE_ENDPOINT=${SENTINEL_DCE_ENDPOINT:-}
+      - SENTINEL_DCR_IMMUTABLE_ID=${SENTINEL_DCR_IMMUTABLE_ID:-}
+      - SENTINEL_STREAM_NAME=${SENTINEL_STREAM_NAME:-Custom-CloudSIEM}
+      - SENTINEL_POLL_SECONDS=${SENTINEL_POLL_SECONDS:-10}
+      - SENTINEL_BATCH_SIZE=${SENTINEL_BATCH_SIZE:-500}
+      - SENTINEL_LOOKBACK_MINUTES=${SENTINEL_LOOKBACK_MINUTES:-15}
+      - SENTINEL_CHECKPOINT_FILE=/state/checkpoint.json
+    entrypoint: ["python", "setup/sentinel-forwarder.py"]
+    restart: unless-stopped

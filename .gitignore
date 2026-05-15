@@ -3,6 +3,7 @@ setup/__pycache__/
 
 # Ignorar variables de entorno y certificados locales del entorno de desarrollo
 .env
+.env.sentinel
 certs/
 *-data/
 elasticsearch/**/data/

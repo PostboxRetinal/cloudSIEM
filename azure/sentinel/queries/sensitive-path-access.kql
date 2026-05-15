@@ -1,0 +1,7 @@
+CloudSIEM_CL
+| where EventDataset == "nginx.access"
+| extend TagsText = tostring(Tags)
+| where SensitivePath == true
+    or TagsText has "sensitive_path_access"
+    or UrlPath has_any ("/admin", "/wp-admin", "/phpmyadmin", "/.env", "/config", "/backup", "/.git", "/etc/passwd", "/proc/", "/server-status", "/actuator", "/api/admin")
+| project TimeGenerated, SourceIp, UrlPath, HttpStatusCode, UserAgent, SensitivePath, Message
