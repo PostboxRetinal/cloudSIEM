@@ -12,3 +12,5 @@ logstash-data/
 # Logs y runtime
 logs/
 filebeat/logs/
+
+.ruff_cache/
