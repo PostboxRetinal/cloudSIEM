@@ -40,60 +40,11 @@ services:
     container_name: siem-setup
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
+      - ./setup:/setup:ro
     user: "0"
     networks:
       - elastic
-    command: >
-      bash -c '
-        if [ ! -f config/certs/ca.zip ]; then
-          echo "Generando CA...";
-          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
-          unzip config/certs/ca.zip -d config/certs;
-        fi;
-        if [ ! -f config/certs/certs.zip ]; then
-          echo "Generando certificados de nodos...";
-          echo -ne \
-            "instances:\n"\
-            "  - name: es01\n"\
-            "    dns:\n"\
-            "      - es01\n"\
-            "      - localhost\n"\
-            "    ip:\n"\
-            "      - 127.0.0.1\n"\
-            "  - name: es02\n"\
-            "    dns:\n"\
-            "      - es02\n"\
-            "      - localhost\n"\
-            "    ip:\n"\
-            "      - 127.0.0.1\n"\
-            "  - name: es03\n"\
-            "    dns:\n"\
-            "      - es03\n"\
-            "      - localhost\n"\
-            "    ip:\n"\
-            "      - 127.0.0.1\n"\
-            "  - name: kibana\n"\
-            "    dns:\n"\
-            "      - kibana\n"\
-            "      - localhost\n"\
-            "    ip:\n"\
-            "      - 127.0.0.1\n"\
-            "  - name: logstash\n"\
-            "    dns:\n"\
-            "      - logstash\n"\
-            "      - localhost\n"\
-            > config/certs/instances.yml;
-          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip \
-            --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt \
-            --ca-key config/certs/ca/ca.key;
-          unzip config/certs/certs.zip -d config/certs;
-        fi;
-        echo "Ajustando permisos de certificados...";
-        chown -R root:root config/certs;
-        chmod -R 644 config/certs;
-        find config/certs -type d -exec chmod 755 {} \;;
-        echo "Setup completado.";
-      '
+    command: ["bash", "/setup/provisioning/bootstrap-certs.sh"]
 
   # ─── Elasticsearch Nodo 1 (master eligible + data) ────────────────────────
   es01:
@@ -356,11 +307,7 @@ services:
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - CACERT=/certs/ca/ca.crt
-    entrypoint: |
-      sh -c "
-      pip install -q requests urllib3 &&
-      python cleanup-indices.py --docker
-      "
+    entrypoint: ["sh", "/setup/provisioning/cleanup-indices.sh"]
     restart: "no"
 
   # ─── ILM Setup Job (corre una vez al inicio) ──────────────────────────────
@@ -385,71 +332,7 @@ services:
     environment:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_PASSWORD=${KIBANA_PASSWORD}
-    entrypoint: >
-      sh -c '
-        set -e;
-        echo "Esperando que el cluster esté listo...";
-        sleep 15;
-
-        echo "=== Configurando contraseña de kibana_system ===";
-        curl -s -X POST --cacert /certs/ca/ca.crt \
-          -u "elastic:$$ELASTIC_PASSWORD" \
-          "https://es01:9200/_security/user/kibana_system/_password" \
-          -H "Content-Type: application/json" \
-          -d "{\"password\":\"$$KIBANA_PASSWORD\"}";
-
-        echo "";
-        echo "=== Creando ILM policy: siem-logs-policy (30 días) ===";
-        curl -s -X PUT --cacert /certs/ca/ca.crt \
-          -u "elastic:$$ELASTIC_PASSWORD" \
-          "https://es01:9200/_ilm/policy/siem-logs-policy" \
-          -H "Content-Type: application/json" \
-          -d @/setup/ilm-policy.json;
-
-        if [ -f /setup/component-settings.json ]; then
-          echo "";
-          echo "=== Creando component templates ===";
-          curl -s -X PUT --cacert /certs/ca/ca.crt \
-            -u "elastic:$$ELASTIC_PASSWORD" \
-            "https://es01:9200/_component_template/siem-settings" \
-            -H "Content-Type: application/json" \
-            -d @/setup/component-settings.json;
-        else
-          echo "=== Omitiendo component template: /setup/component-settings.json no existe ===";
-        fi;
-
-        echo "";
-        echo "=== Creando ingest pipelines ===";
-        if [ -f /setup/geoip-pipeline.json ]; then
-          curl -s -X PUT --cacert /certs/ca/ca.crt \
-            -u "elastic:$$ELASTIC_PASSWORD" \
-            "https://es01:9200/_ingest/pipeline/geoip-pipeline" \
-            -H "Content-Type: application/json" \
-            -d @/setup/geoip-pipeline.json;
-          echo " ✓ Ingest pipeline: geoip-pipeline creado";
-        fi;
-
-        echo "";
-        echo "=== Creando index templates ===";
-        for tpl in siem-syslog siem-nginx siem-auth siem-k8s siem-errors logs-mapping; do
-          template_file="/setup/template-$$tpl.json";
-          if [ -f "$$template_file" ]; then
-            curl -s -X PUT --cacert /certs/ca/ca.crt \
-              -u "elastic:$$ELASTIC_PASSWORD" \
-              "https://es01:9200/_index_template/$$tpl" \
-              -H "Content-Type: application/json" \
-              -d @"$$template_file";
-          else
-            echo "Skipping missing index template: $$template_file";
-          fi;
-          echo "";
-        done;
-
-        echo "=== ILM y templates configurados correctamente ===";
-        curl -s --cacert /certs/ca/ca.crt \
-          -u "elastic:$$ELASTIC_PASSWORD" \
-          "https://es01:9200/_cluster/health?pretty";
-      '
+    entrypoint: ["sh", "/setup/provisioning/ilm-setup.sh"]
     restart: "no"
 
   # ─── Importación automática de reglas Kibana ───────────────────────────────
@@ -459,6 +342,8 @@ services:
     user: "0"
     depends_on:
       kibana:
+        condition: service_healthy
+      logstash:
         condition: service_healthy
     networks:
       elastic:
@@ -473,49 +358,7 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - KIBANA_HOST=https://kibana:5601
       - CACERT=/certs/ca/ca.crt
-    entrypoint:
-      - sh
-      - -c
-      - |
-        set -e
-        apk add --no-cache curl > /dev/null
-        echo "Actualizando all-rules.ndjson..."
-        python /setup/convert-rules-format.py
-
-        echo "Esperando a que Kibana esté disponible..."
-        until curl -s --cacert "$${CACERT}" -o /dev/null -w "%{http_code}" "$${KIBANA_HOST}" | grep -qE "^(200|302)$"; do
-          echo "  esperando a Kibana..."
-          sleep 5
-        done
-
-        if [ "$$SKIP_PREFLIGHT" = "true" ]; then
-          echo "  SKIP_PREFLIGHT=true, omitiendo comprobación de Security Solution..."
-        else
-          privileges_code=$(curl -s --cacert "$${CACERT}" -o /tmp/detection-privileges.txt -w "%{http_code}" \
-            -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
-            -H "kbn-xsrf: true" \
-            -H "Elastic-Api-Version: 2023-10-31" \
-            "$${KIBANA_HOST}/api/detection_engine/privileges")
-          if [ "$${privileges_code}" != "200" ]; then
-            echo "  Security Solution APIs are not available (HTTP $${privileges_code}); skipping rule import."
-            cat /tmp/detection-privileges.txt
-            exit 0
-          fi
-        fi
-
-        http_code=$(curl -s --cacert "$${CACERT}" -o /tmp/response.txt -w "%{http_code}" -X POST "$${KIBANA_HOST}/api/detection_engine/rules/_import?overwrite=true" \
-          -H "kbn-xsrf: true" \
-          -H "Elastic-Api-Version: 2023-10-31" \
-          -u "$${ELASTIC_USER}:$${ELASTIC_PASSWORD}" \
-          --form "file=@/rules/all-rules.ndjson;type=application/x-ndjson")
-
-        if [ "$${http_code}" != "200" ] || ! grep -q '"success"[[:space:]]*:[[:space:]]*true' /tmp/response.txt; then
-          echo "  ✗ Error importando reglas"
-          cat /tmp/response.txt
-          exit 1
-        fi
-
-        echo "  ✓ Reglas importadas"
+    entrypoint: ["sh", "/setup/provisioning/import-rules.sh"]
     restart: "no"
 
   # ─── Creación de Data Views en Kibana ───────────────────────────────────
@@ -540,11 +383,7 @@ services:
       - CACERT=/certs/ca/ca.crt
       - LOGS_DATA_VIEW_ID=logs-*
       - LOGS_DATA_VIEW_TITLE=logs-*
-    entrypoint: |
-      sh -c "
-      pip install -q requests urllib3 &&
-      python setup/create-data-views.py
-      "
+    entrypoint: ["sh", "/app/setup/provisioning/create-data-views.sh"]
     restart: "no"
 
   # ─── Importación automática de dashboards Kibana ──────────────────────────
@@ -572,13 +411,7 @@ services:
       - LOGS_DATA_VIEW_ID=logs-*
       - LOGS_DATA_VIEW_TITLE=logs-*
       - INCLUDE_INDEX_PATTERNS=false
-    entrypoint: |
-      sh -c "
-      sleep 10 &&
-      pip install -q requests urllib3 &&
-      python setup/create-dashboards-complete.py &&
-      python setup/import-dashboards.py
-      "
+    entrypoint: ["sh", "/app/setup/provisioning/import-dashboards.sh"]
     restart: "no"
 
   # ─── Generación automática de logs de prueba ───────────────────────────
@@ -595,9 +428,5 @@ services:
       - ./setup:/app/setup:ro
       - ./logs:/app/logs
     working_dir: /app
-    entrypoint: |
-      sh -c "
-      sleep 15 &&
-      python setup/orchestrate-logs.py --mode normal
-      "
+    entrypoint: ["sh", "/app/setup/provisioning/generate-logs.sh"]
     restart: "no"

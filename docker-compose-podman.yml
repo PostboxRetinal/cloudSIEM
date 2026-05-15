@@ -2,6 +2,10 @@ x-podman:
   in_pod: false
 
 services:
+  setup:
+    volumes:
+      - ./setup:/setup:ro,z
+
   es01:
     volumes:
       - ./elasticsearch/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro,z

@@ -17,8 +17,9 @@ from datetime import datetime, timezone
 
 try:
     import requests
+    import urllib3
 except ImportError:
-    print("Error: requiere 'requests'. Instalar con: pip install requests")
+    print("Error: requiere 'requests' y 'urllib3'. Instalar con: pip install requests urllib3")
     sys.exit(1)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
