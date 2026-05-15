@@ -21,12 +21,19 @@ CACERT = os.getenv("CACERT", "./setup/certs/ca/ca.crt")
 WAIT_KIBANA_TIMEOUT = int(os.getenv("WAIT_KIBANA_TIMEOUT", "600"))
 DATA_VIEW_RETRIES = int(os.getenv("DATA_VIEW_RETRIES", "5"))
 DATA_VIEW_RETRY_WAIT = int(os.getenv("DATA_VIEW_RETRY_WAIT", "10"))
-LOGS_DATA_VIEW_ID = os.getenv("LOGS_DATA_VIEW_ID", "logs-*")
-LOGS_DATA_VIEW_TITLE = os.getenv("LOGS_DATA_VIEW_TITLE", "logs-*")
+
+DATA_VIEWS = [
+    {"id": "logs-*",       "title": "logs-*",       "description": "Todos los logs"},
+    {"id": "logs-auth-*",  "title": "logs-auth-*",  "description": "Logs de autenticacion"},
+    {"id": "logs-nginx-*", "title": "logs-nginx-*", "description": "Logs de nginx/apache"},
+    {"id": "logs-syslog-*","title": "logs-syslog-*","description": "Logs de sistema"},
+    {"id": "logs-k8s-*",   "title": "logs-k8s-*",   "description": "Logs de Kubernetes"},
+]
 
 G = "\033[92m"
 R = "\033[91m"
 Y = "\033[93m"
+B = "\033[94m"
 W = "\033[1m"
 X = "\033[0m"
 
@@ -103,10 +110,17 @@ def main():
     if not wait_for_kibana(client):
         sys.exit(1)
 
-    if not ensure_data_view(client, LOGS_DATA_VIEW_ID, LOGS_DATA_VIEW_TITLE):
-        sys.exit(1)
+    all_ok = True
+    for dv in DATA_VIEWS:
+        print(f"\n  {B}-- {dv['description']}{X}")
+        if not ensure_data_view(client, dv["id"], dv["title"]):
+            print(f"  {R}✗{X} Fallo al crear data view: {dv['id']}")
+            all_ok = False
 
-    print(f"  {G}✓{X} Data views listos")
+    if all_ok:
+        print(f"\n  {G}✓{X} Todos los data views listos")
+    else:
+        print(f"\n  {Y}⚠{X} Algunos data views no se crearon correctamente")
 
 
 if __name__ == "__main__":

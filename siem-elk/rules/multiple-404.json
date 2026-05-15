@@ -8,9 +8,9 @@
   "type": "threshold",
   "query": "event.dataset:\"nginx.access\" AND http.response.status_code:404",
   "language": "kuery",
-  "index": ["logs-nginx-*"],
+  "index": ["logs-nginx*"],
   "threshold": {
-    "field": ["source.ip"],
+    "field": ["source.ip.keyword"],
     "value": 15,
     "cardinality": [
       {
@@ -62,7 +62,7 @@
     }
   ],
   "actions": [],
-  "note": "## Investigación\n1. Identificar `source.ip` y revisar `url.path` de los 404 — ¿busca WordPress, phpMyAdmin, .env?\n2. Revisar `user_agent.original` — herramientas como gobuster/dirbuster tienen UAs característicos\n3. Verificar si algún path devolvió 200 en la misma ventana temporal (éxito del enumerador)\n4. Revisar logs-auth-* — ¿el mismo IP intentó autenticación tras encontrar algo?\n\n## Contención\n- Rate-limit desde esa IP en nginx: `limit_req_zone`\n- Bloquear si user-agent es un scanner conocido\n\n## Falsos positivos esperados\n- Links rotos en aplicación (muchos 404 legítimos desde diferentes usuarios)\n- Bots de crawling como Googlebot con paths inexistentes",
+  "note": "## Investigación\n1. Identificar `source.ip` y revisar `url.path` de los 404 — ¿busca WordPress, phpMyAdmin, .env?\n2. Revisar `user_agent.original` — herramientas como gobuster/dirbuster tienen UAs característicos\n3. Verificar si algún path devolvió 200 en la misma ventana temporal (éxito del enumerador)\n4. Revisar logs-auth* — ¿el mismo IP intentó autenticación tras encontrar algo?\n\n## Contención\n- Rate-limit desde esa IP en nginx: `limit_req_zone`\n- Bloquear si user-agent es un scanner conocido\n\n## Falsos positivos esperados\n- Links rotos en aplicación (muchos 404 legítimos desde diferentes usuarios)\n- Bots de crawling como Googlebot con paths inexistentes",
   "false_positives": [
     "Aplicaciones con muchos enlaces rotos que generan 404s masivos",
     "Crawlers de buscadores (Googlebot, Bingbot) explorando rutas inexistentes",

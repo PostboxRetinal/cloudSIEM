@@ -6,11 +6,11 @@
   "severity": "medium",
   "enabled": true,
   "type": "threshold",
-  "query": "event.category:\"network\" AND event.action:\"firewall_block\" AND tags:\"firewall_block\" AND network.transport:(\"tcp\" OR \"udp\")",
+  "query": "event.category:\"network\" AND event.action:\"firewall_block\" AND tags:\"firewall_block\" AND network.transport:(\"tcp\" OR \"udp\" OR \"TCP\" OR \"UDP\")",
   "language": "kuery",
-  "index": ["logs-syslog-*"],
+  "index": ["logs-syslog*"],
   "threshold": {
-    "field": ["source.ip"],
+    "field": ["source.ip.keyword"],
     "value": 20,
     "cardinality": [
       {
@@ -69,7 +69,7 @@
     }
   ],
   "actions": [],
-  "note": "## Investigación\n1. Identificar `source.ip` y `destination.ip` en la alerta\n2. Revisar `destination.port` para entender qué servicios está buscando\n3. Correlacionar con logs-auth-* — ¿intentó acceder a algún servicio abierto?\n4. Verificar si hay intentos de conexión exitosa tras el escaneo\n\n## Contención\n- Bloquear IP inmediatamente en firewall perimetral\n- Revisar si la IP pertenece a un escáner interno autorizado (Nessus, OpenVAS)\n\n## Falsos positivos esperados\n- Escáneres de seguridad internos programados (Nessus, Qualys)\n- Healthchecks de balanceadores de carga que prueban múltiples puertos",
+  "note": "## Investigación\n1. Identificar `source.ip` y `destination.ip` en la alerta\n2. Revisar `destination.port` para entender qué servicios está buscando\n3. Correlacionar con logs-auth* — ¿intentó acceder a algún servicio abierto?\n4. Verificar si hay intentos de conexión exitosa tras el escaneo\n\n## Contención\n- Bloquear IP inmediatamente en firewall perimetral\n- Revisar si la IP pertenece a un escáner interno autorizado (Nessus, OpenVAS)\n\n## Falsos positivos esperados\n- Escáneres de seguridad internos programados (Nessus, Qualys)\n- Healthchecks de balanceadores de carga que prueban múltiples puertos",
   "false_positives": [
     "Escáneres de vulnerabilidades internos autorizados (Nessus, OpenVAS, Qualys)",
     "Monitoreo de disponibilidad que verifica múltiples puertos de servicio"

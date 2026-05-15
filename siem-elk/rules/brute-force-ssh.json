@@ -8,9 +8,9 @@
   "type": "threshold",
   "query": "event.dataset:\"system.auth\" AND event.outcome:\"failure\" AND (event.action:\"authentication_failure\" OR tags:\"auth_failure\") AND process.name:\"sshd\"",
   "language": "kuery",
-  "index": ["logs-auth-*"],
+  "index": ["logs-auth*"],
   "threshold": {
-    "field": ["source.ip"],
+    "field": ["source.ip.keyword"],
     "value": 5,
     "cardinality": []
   },
@@ -53,7 +53,7 @@
   "references": [
     "https://www.elastic.co/guide/en/security/current/prebuilt-rule-8-2-1-potential-ssh-brute-force-detected.html"
   ],
-  "note": "## Investigación\n1. Verificar en Kibana → Security → Alerts la IP origen (`source.ip`)\n2. Revisar si la IP está en listas de threat intel conocidas\n3. Ejecutar: `GET logs-auth-*/_search` filtrando por esa IP en los últimos 5 minutos\n4. Verificar si algún intento tuvo `event.outcome:success` (brute force exitoso)\n\n## Contención inmediata\n- Bloquear IP en UFW: `sudo ufw deny from <IP> to any`\n- Si hubo éxito: revocar sesión activa y cambiar credenciales\n\n## Falsos positivos esperados\n- Sistemas de monitoreo legítimos con autenticación fallida\n- Usuarios que olvidaron credenciales (menos de 10 intentos, IP interna)",
+  "note": "## Investigación\n1. Verificar en Kibana → Security → Alerts la IP origen (`source.ip`)\n2. Revisar si la IP está en listas de threat intel conocidas\n3. Ejecutar: `GET logs-auth*/_search` filtrando por esa IP en los últimos 5 minutos\n4. Verificar si algún intento tuvo `event.outcome:success` (brute force exitoso)\n\n## Contención inmediata\n- Bloquear IP en UFW: `sudo ufw deny from <IP> to any`\n- Si hubo éxito: revocar sesión activa y cambiar credenciales\n\n## Falsos positivos esperados\n- Sistemas de monitoreo legítimos con autenticación fallida\n- Usuarios que olvidaron credenciales (menos de 10 intentos, IP interna)",
   "false_positives": [
     "Sistemas de monitoreo o healthcheck con credenciales desactualizadas",
     "Usuarios internos con múltiples intentos fallidos por error de teclado"

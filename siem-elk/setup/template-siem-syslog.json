@@ -5,14 +5,46 @@
       "index.lifecycle.name": "siem-logs-policy",
       "index.lifecycle.rollover_alias": "logs-syslog",
       "index.number_of_shards": 1,
-      "index.number_of_replicas": 0
+      "index.number_of_replicas": 1
     },
     "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ],
       "properties": {
         "@timestamp": { "type": "date" },
         "host.hostname": { "type": "keyword" },
+        "host.name": { "type": "keyword" },
         "process.name": { "type": "keyword" },
-        "log.level": { "type": "keyword" }
+        "log.level": { "type": "keyword" },
+        "source.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "source.port": { "type": "long" },
+        "destination.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "destination.port": { "type": "long" },
+        "network.transport": { "type": "keyword" },
+        "network.bytes": { "type": "long" },
+        "network.ttl": { "type": "long" },
+        "event.action": { "type": "keyword" },
+        "event.category": { "type": "keyword" },
+        "event.outcome": { "type": "keyword" }
       }
     }
   },

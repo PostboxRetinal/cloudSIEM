@@ -8,7 +8,7 @@
   "type": "query",
   "query": "event.dataset:\"nginx.access\" AND siem.sensitive_path:true",
   "language": "kuery",
-  "index": ["logs-nginx-*"],
+  "index": ["logs-nginx*"],
   "from": "now-5m",
   "interval": "1m",
   "max_signals": 200,

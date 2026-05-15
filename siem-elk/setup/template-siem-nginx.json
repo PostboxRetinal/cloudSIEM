@@ -5,13 +5,41 @@
       "index.lifecycle.name": "siem-logs-policy",
       "index.lifecycle.rollover_alias": "logs-nginx",
       "index.number_of_shards": 1,
-      "index.number_of_replicas": 0
+      "index.number_of_replicas": 1
     },
     "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ],
       "properties": {
         "@timestamp": { "type": "date" },
-        "client.ip": { "type": "ip" },
-        "source.ip": { "type": "ip" },
+        "client.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "source.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "destination.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "destination.port": { "type": "long" },
         "http.response.status_code": { "type": "long" },
         "event.dataset": { "type": "constant_keyword", "value": "nginx.access" },
         "url": {
@@ -20,6 +48,12 @@
               "type": "text",
               "fields": {
                 "keyword": { "type": "keyword", "ignore_above": 1024 }
+              }
+            },
+            "original": {
+              "type": "text",
+              "fields": {
+                "keyword": { "type": "keyword", "ignore_above": 2048 }
               }
             }
           }

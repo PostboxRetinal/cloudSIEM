@@ -21,6 +21,10 @@ from pathlib import Path
 BASE_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
 
 INTERNAL_IPS = ["10.0.0.5", "192.168.1.20", "172.16.0.10"]
+EXTERNAL_IPS = [
+    "185.220.101.34", "89.248.167.131", "194.165.16.11",
+    "45.33.32.156",   "104.236.246.58", "162.243.157.229",
+]
 USERS        = ["ubuntu", "deploy", "admin", "www-data", "gitlab"]
 PATHS_OK     = ["/", "/index.html", "/api/v1/status", "/api/v1/users", "/about",
                 "/api/health", "/login", "/css/style.css", "/js/app.js", "/favicon.ico"]
@@ -119,6 +123,35 @@ def gen_auth_normal(count=10):
 
 
 # ---------------------------------------------------------------------------
+# AUTH - Logins fuera de horario laboral (R8.4 - Login SSH Fuera de Horario)
+# Genera eventos a las 06:00 GMT-5 (11:00 UTC) para que el pipeline Logstash
+# los etiquete con siem.after_hours_login=true (regla: hour < 7 || hour >= 20)
+# ---------------------------------------------------------------------------
+def ts_syslog_off_hours():
+    """Timestamp a las 06:00 GMT-5 (11:00 UTC) fuera del horario laboral 07-20."""
+    now = datetime.now(timezone.utc)
+    off_hours = now.replace(hour=11, minute=0, second=0, microsecond=0)
+    return off_hours.strftime("%b %d %H:%M:%S")
+
+
+def gen_auth_after_hours(count=5):
+    """Genera logins SSH exitosos con timestamp a las 06:00 GMT-5 (11:00 UTC)."""
+    ips = EXTERNAL_IPS[:3]
+    lines = []
+    for _ in range(count):
+        ip   = random.choice(ips)
+        user = random.choice(["deploy", "admin", "root"])
+        pid  = random.randint(1000, 9999)
+        ts   = ts_syslog_off_hours()
+        lines.append(
+            f"{ts} web-01 sshd[{pid}]: "
+            f"Accepted password for {user} from {ip} port "
+            f"{random.randint(40000,65000)} ssh2"
+        )
+    return lines
+
+
+# ---------------------------------------------------------------------------
 # FUENTE 3: NGINX - trafico web normal
 # ---------------------------------------------------------------------------
 def gen_nginx_normal(count=30):
@@ -203,6 +236,8 @@ def main():
     if args.source in ("all", "auth"):
         print("Generando auth.log normal...")
         write_logs(gen_auth_normal(max(args.count // 2, 5)), args.auth_path)
+        print("Generando auth.log (fuera de horario laboral - 06:00 GMT-5 / 11:00 UTC)...")
+        write_logs(gen_auth_after_hours(5), args.auth_path)
 
     if args.source in ("all", "nginx"):
         print("Generando nginx access normal...")

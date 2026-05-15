@@ -5,15 +5,35 @@
       "index.lifecycle.name": "siem-logs-policy",
       "index.lifecycle.rollover_alias": "logs-auth",
       "index.number_of_shards": 1,
-      "index.number_of_replicas": 0
+      "index.number_of_replicas": 1
     },
     "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ],
       "properties": {
         "@timestamp": { "type": "date" },
-        "source.ip": { "type": "ip" },
+        "source.ip": {
+          "type": "keyword",
+          "fields": {
+            "ip": { "type": "ip" }
+          }
+        },
+        "source.port": { "type": "long" },
         "event.outcome": { "type": "keyword" },
         "event.action": { "type": "keyword" },
-        "user.name": { "type": "keyword" }
+        "event.category": { "type": "keyword" },
+        "user.name": { "type": "keyword" },
+        "process.name": { "type": "keyword" },
+        "host.name": { "type": "keyword" }
       }
     }
   },

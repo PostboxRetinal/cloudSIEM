@@ -1,15 +1,15 @@
 {
   "id": "siem-rule-login-after-hours",
   "name": "SIEM - Login SSH Exitoso Fuera de Horario Laboral",
-  "description": "Detecta autenticaciones SSH exitosas fuera del horario laboral definido (lunes-viernes 07:00-20:00 UTC) o durante fines de semana. El pipeline de Logstash marca estos eventos con el campo siem.after_hours_login=true. Puede indicar acceso no autorizado, cuenta comprometida o trabajo remoto no declarado.",
+  "description": "Detecta autenticaciones SSH exitosas fuera del horario laboral definido (lunes-viernes 09:00-18:00 GMT-5) o durante fines de semana. El pipeline de Logstash marca estos eventos con el campo siem.after_hours_login=true. Puede indicar acceso no autorizado, cuenta comprometida o trabajo remoto no declarado.",
   "risk_score": 63,
   "severity": "medium",
   "enabled": true,
   "type": "query",
   "query": "event.dataset:\"system.auth\" AND event.outcome:\"success\" AND event.action:\"authentication_success\" AND siem.after_hours_login:true AND process.name:\"sshd\"",
   "language": "kuery",
-  "index": ["logs-auth-*"],
-  "from": "now-5m",
+  "index": ["logs-auth*"],
+  "from": "now-2h",
   "interval": "5m",
   "max_signals": 100,
   "tags": [
@@ -60,7 +60,7 @@
     }
   ],
   "actions": [],
-  "note": "## Investigación\n1. Identificar `user.name` y `source.ip` — ¿es un empleado conocido?\n2. Verificar `source.geo.country_iso_code` — ¿acceso desde país inusual?\n3. Revisar actividad post-login: comandos sudo, accesos a archivos sensibles\n4. Consultar con el usuario si el acceso fue intencional\n\n## Contención (si sospechoso)\n- Bloquear sesión activa: `sudo pkill -u <username>`\n- Cambiar contraseña o revocar clave SSH\n- Habilitar MFA si no está activo\n\n## Ajuste de horario\nModificar en 04-filter-auth.conf la condición Ruby:\n  `hour < 7 || hour >= 20` → ajustar según zona horaria del equipo\n  `wday == 0 || wday == 6` → fines de semana (0=domingo, 6=sábado)\n\n## Falsos positivos esperados\n- Empleados con trabajo flexible o en otras zonas horarias\n- Sistemas de CI/CD que se autentican automáticamente",
+  "note": "## Investigación\n1. Identificar `user.name` y `source.ip` — ¿es un empleado conocido?\n2. Verificar `source.geo.country_iso_code` — ¿acceso desde país inusual?\n3. Revisar actividad post-login: comandos sudo, accesos a archivos sensibles\n4. Consultar con el usuario si el acceso fue intencional\n\n## Contención (si sospechoso)\n- Bloquear sesión activa: `sudo pkill -u <username>`\n- Cambiar contraseña o revocar clave SSH\n- Habilitar MFA si no está activo\n\n## Ajuste de horario\nModificar en 04-filter-auth.conf la condición Ruby:\n  `hour < 9 || hour >= 18` → ajustar según zona horaria del equipo\n  `wday == 0 || wday == 6` → fines de semana (0=domingo, 6=sábado)\n\n## Falsos positivos esperados\n- Empleados con trabajo flexible o en otras zonas horarias\n- Sistemas de CI/CD que se autentican automáticamente",
   "false_positives": [
     "Empleados con horario flexible o en zonas horarias diferentes (UTC-5 para Colombia)",
     "Pipelines de CI/CD o sistemas automatizados que corren en horarios no laborales",

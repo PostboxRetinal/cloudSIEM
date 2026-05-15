@@ -5,7 +5,7 @@
       "index.lifecycle.name": "siem-logs-policy",
       "index.lifecycle.rollover_alias": "logs-k8s",
       "index.number_of_shards": 1,
-      "index.number_of_replicas": 0
+      "index.number_of_replicas": 1
     },
     "mappings": {
       "properties": {

@@ -342,6 +342,32 @@ services:
     cap_add:
       - DAC_READ_SEARCH
 
+  # ─── Cleanup de indices SIEM (corre antes de ilm-setup) ─────────────────────
+  cleanup-indices:
+    image: python:3.11-slim
+    container_name: siem-cleanup-indices
+    user: "0"
+    depends_on:
+      es01:
+        condition: service_healthy
+    networks:
+      - elastic
+    volumes:
+      - certs:/certs:ro
+      - ./setup:/setup:ro
+    working_dir: /setup
+    environment:
+      - ELASTIC_HOSTS=https://es01:9200
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - CACERT=/certs/ca/ca.crt
+    entrypoint: |
+      sh -c "
+      pip install -q requests urllib3 &&
+      python cleanup-indices.py --docker
+      "
+    restart: "no"
+
   # ─── ILM Setup Job (corre una vez al inicio) ──────────────────────────────
   ilm-setup:
     image: curlimages/curl:latest
@@ -354,6 +380,8 @@ services:
         condition: service_healthy
       es03:
         condition: service_healthy
+      cleanup-indices:
+        condition: service_completed_successfully
     networks:
       - elastic
     volumes:
@@ -431,7 +459,7 @@ services:
 
   # ─── Importación automática de reglas Kibana ───────────────────────────────
   rules-import:
-    image: curlimages/curl:latest
+    image: python:3.11-alpine
     container_name: siem-rules-import
     user: "0"
     depends_on:
@@ -442,7 +470,8 @@ services:
         ipv4_address: 172.20.0.40
     volumes:
       - certs:/certs:ro
-      - ./rules:/rules:ro
+      - ./rules:/rules:rw
+      - ./setup:/setup:ro
     working_dir: /rules
     environment:
       - ELASTIC_USER=elastic
@@ -454,6 +483,10 @@ services:
       - -c
       - |
         set -e
+        apk add --no-cache curl > /dev/null
+        echo "Actualizando all-rules.ndjson..."
+        python /setup/convert-rules-format.py
+
         echo "Esperando a que Kibana esté disponible..."
         until curl -s --cacert "$${CACERT}" -o /dev/null -w "%{http_code}" "$${KIBANA_HOST}" | grep -qE "^(200|302)$"; do
           echo "  esperando a Kibana..."
@@ -570,6 +603,6 @@ services:
     entrypoint: |
       sh -c "
       sleep 15 &&
-      python setup/generate-test-logs.py --source all
+      python setup/orchestrate-logs.py --mode normal
       "
     restart: "no"
