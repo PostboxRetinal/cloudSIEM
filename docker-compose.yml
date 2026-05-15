@@ -202,13 +202,13 @@ services:
       - certs:/usr/share/kibana/config/certs
       - kibana-data:/usr/share/kibana/data
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./kibana/node.options:/usr/share/kibana/config/node.options:ro
     environment:
       - SERVER_NAME=${SERVER_NAME}
       - 'ELASTICSEARCH_HOSTS=["https://es01:9200","https://es02:9200","https://es03:9200"]'
       - ELASTICSEARCH_USERNAME=${ELASTICSEARCH_USERNAME}
       - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
-      - NODE_OPTIONS=--dns-result-order=ipv4first
       - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}

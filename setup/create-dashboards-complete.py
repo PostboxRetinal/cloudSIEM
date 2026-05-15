@@ -7,8 +7,96 @@ Genera dashboards ejecutivo y operacional con visualizaciones completas para Kib
 import json
 from pathlib import Path
 
+DASHBOARD_VERSION = "8.19.14"
+LOGS_INDEX = "logs-*"
 
-def build_dashboard(dashboard_id, title, description, panel_specs, refresh_interval={"pause": True, "value": 0}):
+RISK_QUERY = {
+    "bool": {
+        "filter": [
+            {"terms": {"siem.severity.keyword": ["high", "medium"]}}
+        ]
+    }
+}
+
+HIGH_RISK_QUERY = {"term": {"siem.severity.keyword": "high"}}
+MEDIUM_RISK_QUERY = {"term": {"siem.severity.keyword": "medium"}}
+
+THREAT_TAGS_REGEX = (
+    "sqli_detected|path_traversal|security_scanner|sensitive_path_access|"
+    "auth_failure|firewall_block|after_hours_login|high_risk_sudo|"
+    "xss_detected|max_attempts_exceeded|http_404"
+)
+
+
+def search_source(query=None, sort=None):
+    source = {
+        "index": LOGS_INDEX,
+        "query": query or {"match_all": {}},
+        "filter": [],
+    }
+    if sort:
+        source["sort"] = sort
+    return {"searchSourceJSON": json.dumps(source, ensure_ascii=False)}
+
+
+def build_metric_visualization(viz_id, title, sub_text, query=None, agg_type="count", agg_params=None):
+    return {
+        "type": "visualization",
+        "id": viz_id,
+        "attributes": {
+            "title": title,
+            "visState": json.dumps(
+                {
+                    "title": title,
+                    "type": "metric",
+                    "params": {
+                        "addTooltip": True,
+                        "addLegend": False,
+                        "type": "metric",
+                        "metric": {
+                            "percentageMode": False,
+                            "useRanges": False,
+                            "colorSchema": "Green to Red",
+                            "metricColorMode": "None",
+                            "colorsRange": [{"from": 0, "to": 10000}],
+                            "labels": {"show": False},
+                            "invertColors": False,
+                            "style": {
+                                "bgFill": "#000",
+                                "bgColor": False,
+                                "labelColor": False,
+                                "subText": sub_text,
+                                "fontSize": 48,
+                            },
+                        },
+                    },
+                    "aggs": [
+                        {
+                            "id": "1",
+                            "enabled": True,
+                            "type": agg_type,
+                            "schema": "metric",
+                            "params": agg_params or {},
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": search_source(query),
+        },
+    }
+
+
+def build_dashboard(
+    dashboard_id,
+    title,
+    description,
+    panel_specs,
+    refresh_interval={"pause": True, "value": 0},
+    time_from=None,
+    time_to=None,
+):
     panels = []
     references = []
 
@@ -16,7 +104,7 @@ def build_dashboard(dashboard_id, title, description, panel_specs, refresh_inter
         panel_ref_name = f"panel_{index}"
         panels.append(
             {
-                "version": "8.19.14",
+                "version": DASHBOARD_VERSION,
                 "type": "visualization",
                 "gridData": panel_spec["gridData"],
                 "panelIndex": str(index),
@@ -32,33 +120,39 @@ def build_dashboard(dashboard_id, title, description, panel_specs, refresh_inter
             }
         )
 
+    attributes = {
+        "title": title,
+        "description": description,
+        "optionsJSON": json.dumps(
+            {
+                "useMargins": True,
+                "syncColors": False,
+                "syncCursor": True,
+                "syncTooltips": False,
+                "hidePanelTitles": False,
+            }
+        ),
+        "panelsJSON": json.dumps(panels, ensure_ascii=False),
+        "refreshInterval": refresh_interval,
+        "timeRestore": bool(time_from or time_to),
+        "kibanaSavedObjectMeta": {
+            "searchSourceJSON": json.dumps(
+                {
+                    "query": {"language": "kuery", "query": ""},
+                    "filter": [],
+                }
+            )
+        },
+    }
+    if time_from:
+        attributes["timeFrom"] = time_from
+    if time_to:
+        attributes["timeTo"] = time_to
+
     return {
         "type": "dashboard",
         "id": dashboard_id,
-        "attributes": {
-            "title": title,
-            "description": description,
-            "optionsJSON": json.dumps(
-                {
-                    "useMargins": True,
-                    "syncColors": False,
-                    "syncCursor": True,
-                    "syncTooltips": False,
-                    "hidePanelTitles": False,
-                }
-            ),
-            "panelsJSON": json.dumps(panels, ensure_ascii=False),
-            "refreshInterval": refresh_interval,
-            "timeRestore": False,
-            "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps(
-                    {
-                        "query": {"language": "kuery", "query": ""},
-                        "filter": [],
-                    }
-                )
-            },
-        },
+        "attributes": attributes,
         "references": references,
     }
 
@@ -77,6 +171,35 @@ def create_complete_dashboards():
         }
     }
     saved_objects.append(index_pattern)
+    saved_objects.extend(
+        [
+            build_metric_visualization(
+                "viz-exec-total-events",
+                "Eventos Observados",
+                "últimas 24h",
+            ),
+            build_metric_visualization(
+                "viz-exec-high-risk",
+                "Riesgo Alto",
+                "eventos críticos",
+                query=HIGH_RISK_QUERY,
+            ),
+            build_metric_visualization(
+                "viz-exec-medium-risk",
+                "Riesgo Medio",
+                "eventos relevantes",
+                query=MEDIUM_RISK_QUERY,
+            ),
+            build_metric_visualization(
+                "viz-exec-risk-sources",
+                "IPs Sospechosas",
+                "orígenes únicos",
+                query=RISK_QUERY,
+                agg_type="cardinality",
+                agg_params={"field": "source.ip.keyword"},
+            ),
+        ]
+    )
     
     # ─── VISUALIZATIONS ──────────────────────────────────────────────────────
     
@@ -85,9 +208,9 @@ def create_complete_dashboards():
         "type": "visualization",
         "id": "viz-top-threats",
         "attributes": {
-            "title": "Top Amenazas del Día",
+            "title": "Top Señales de Riesgo del Día",
             "visState": json.dumps({
-                "title": "Top Amenazas del Día",
+                "title": "Top Señales de Riesgo del Día",
                 "type": "pie",
                 "params": {
                     "addLegend": True,
@@ -109,8 +232,9 @@ def create_complete_dashboards():
                         "type": "terms",
                         "schema": "segment",
                         "params": {
-                            "field": "event.category.keyword",
-                            "size": 5,
+                            "field": "tags.keyword",
+                            "size": 8,
+                            "include": THREAT_TAGS_REGEX,
                             "order": "desc",
                             "orderBy": "1"
                         }
@@ -118,13 +242,7 @@ def create_complete_dashboards():
                 ]
             }),
             "uiStateJSON": "{}",
-            "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
-                    "query": {"match_all": {}},
-                    "filter": []
-                })
-            }
+            "kibanaSavedObjectMeta": search_source(RISK_QUERY)
         }
     }
     saved_objects.append(viz_top_threats)
@@ -134,15 +252,26 @@ def create_complete_dashboards():
         "type": "visualization",
         "id": "viz-alert-trend",
         "attributes": {
-            "title": "Tendencia de Alertas por Semana",
+            "title": "Tendencia de Riesgo por Hora",
             "visState": json.dumps({
-                "title": "Tendencia de Alertas por Semana",
+                "title": "Tendencia de Riesgo por Hora",
                 "type": "line",
                 "params": {
                     "grid": {"categoryLines": False, "valueAxis": "ValueAxis-1"},
                     "categoryAxes": [{"id": "CategoryAxis-1", "type": "category", "position": "bottom", "show": True, "style": {}, "scale": {"type": "linear"}, "labels": {"show": True, "truncate": 100}, "title": {}}],
                     "valueAxes": [{"id": "ValueAxis-1", "name": "LeftAxis-1", "type": "value", "position": "left", "show": True, "style": {}, "scale": {"type": "linear", "mode": "normal"}, "labels": {"show": True, "truncate": 100}, "title": {"text": "Count"}}],
-                    "seriesParams": [{"show": True, "type": "line", "interpolate": "linear", "valueAxis": "ValueAxis-1"}],
+                    "seriesParams": [
+                        {
+                            "show": True,
+                            "type": "line",
+                            "mode": "normal",
+                            "data": {"label": "Count", "id": "1"},
+                            "interpolate": "linear",
+                            "drawLinesBetweenPoints": True,
+                            "showCircles": True,
+                            "valueAxis": "ValueAxis-1",
+                        }
+                    ],
                     "addLegend": True,
                     "addTooltip": True,
                     "legendPosition": "bottom"
@@ -162,8 +291,8 @@ def create_complete_dashboards():
                         "schema": "segment",
                         "params": {
                             "field": "@timestamp",
-                            "interval": "day",
-                            "customInterval": "2h",
+                            "interval": "h",
+                            "customInterval": "1h",
                             "min_doc_count": 1,
                             "extended_bounds": {},
                             "order": "asc",
@@ -173,13 +302,7 @@ def create_complete_dashboards():
                 ]
             }),
             "uiStateJSON": "{}",
-            "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
-                    "query": {"match_all": {}},
-                    "filter": []
-                })
-            }
+            "kibanaSavedObjectMeta": search_source(RISK_QUERY)
         }
     }
     saved_objects.append(viz_alert_trend)
@@ -236,9 +359,9 @@ def create_complete_dashboards():
         "type": "visualization",
         "id": "viz-system-health",
         "attributes": {
-            "title": "Salud General del Sistema",
+            "title": "Salud General: Hosts Monitoreados",
             "visState": json.dumps({
-                "title": "Salud General del Sistema",
+                "title": "Salud General: Hosts Monitoreados",
                 "type": "gauge",
                 "params": {
                     "type": "gauge",
@@ -257,8 +380,8 @@ def create_complete_dashboards():
                         "gaugeColorMode": "Labels",
                         "colorsRange": [
                             {"from": 0, "to": 1},
-                            {"from": 1, "to": 2},
-                            {"from": 2, "to": 3}
+                            {"from": 1, "to": 3},
+                            {"from": 3, "to": 10}
                         ],
                         "invertColors": True,
                         "labels": {"show": True, "color": "black"},
@@ -272,7 +395,7 @@ def create_complete_dashboards():
                             "maskBars": 50,
                             "bgFill": "#eee",
                             "bgColor": False,
-                            "subText": "Sistemas",
+                            "subText": "Hosts",
                             "fontSize": 60
                         }
                     }
@@ -304,9 +427,9 @@ def create_complete_dashboards():
         "type": "visualization",
         "id": "viz-geoip-map",
         "attributes": {
-            "title": "Mapa de IPs Sospechosas",
+            "title": "Mapa Geográfico de IPs Sospechosas",
             "visState": json.dumps({
-                "title": "Mapa de IPs Sospechosas",
+                "title": "Mapa Geográfico de IPs Sospechosas",
                 "type": "tile_map",
                 "params": {
                     "addTooltip": True,
@@ -340,13 +463,7 @@ def create_complete_dashboards():
                 ]
             }),
             "uiStateJSON": "{}",
-            "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "logs-*",
-                    "query": {"match_all": {}},
-                    "filter": []
-                })
-            }
+            "kibanaSavedObjectMeta": search_source(RISK_QUERY)
         }
     }
     saved_objects.append(viz_geoip_map)
@@ -540,22 +657,170 @@ def create_complete_dashboards():
         }
     }
     saved_objects.append(viz_top_users)
+
+    # 8. Executive severity distribution
+    viz_exec_severity = {
+        "type": "visualization",
+        "id": "viz-exec-severity-distribution",
+        "attributes": {
+            "title": "Distribución por Severidad",
+            "visState": json.dumps({
+                "title": "Distribución por Severidad",
+                "type": "pie",
+                "params": {
+                    "addLegend": True,
+                    "addTooltip": True,
+                    "isDonut": True,
+                    "legendPosition": "right"
+                },
+                "aggs": [
+                    {
+                        "id": "1",
+                        "enabled": True,
+                        "type": "count",
+                        "schema": "metric",
+                        "params": {}
+                    },
+                    {
+                        "id": "2",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "segment",
+                        "params": {
+                            "field": "siem.severity.keyword",
+                            "size": 4,
+                            "order": "desc",
+                            "orderBy": "1"
+                        }
+                    }
+                ]
+            }, ensure_ascii=False),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": search_source()
+        }
+    }
+    saved_objects.append(viz_exec_severity)
+
+    # 9. Executive source coverage
+    viz_exec_source_coverage = {
+        "type": "visualization",
+        "id": "viz-exec-source-coverage",
+        "attributes": {
+            "title": "Cobertura por Fuente de Log",
+            "visState": json.dumps({
+                "title": "Cobertura por Fuente de Log",
+                "type": "pie",
+                "params": {
+                    "addLegend": True,
+                    "addTooltip": True,
+                    "isDonut": True,
+                    "legendPosition": "right"
+                },
+                "aggs": [
+                    {
+                        "id": "1",
+                        "enabled": True,
+                        "type": "count",
+                        "schema": "metric",
+                        "params": {}
+                    },
+                    {
+                        "id": "2",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "segment",
+                        "params": {
+                            "field": "event.dataset.keyword",
+                            "size": 8,
+                            "order": "desc",
+                            "orderBy": "1"
+                        }
+                    }
+                ]
+            }, ensure_ascii=False),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": search_source()
+        }
+    }
+    saved_objects.append(viz_exec_source_coverage)
+
+    # 10. Executive suspicious IPs table
+    viz_exec_risk_ips = {
+        "type": "visualization",
+        "id": "viz-exec-risk-ips",
+        "attributes": {
+            "title": "Top IPs Sospechosas",
+            "visState": json.dumps({
+                "title": "Top IPs Sospechosas",
+                "type": "table",
+                "params": {
+                    "perPage": 10,
+                    "showTotal": False,
+                },
+                "aggs": [
+                    {
+                        "id": "1",
+                        "enabled": True,
+                        "type": "count",
+                        "schema": "metric",
+                        "params": {}
+                    },
+                    {
+                        "id": "2",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "source.ip.keyword",
+                            "size": 10,
+                            "order": "desc",
+                            "orderBy": "1"
+                        }
+                    },
+                    {
+                        "id": "3",
+                        "enabled": True,
+                        "type": "terms",
+                        "schema": "bucket",
+                        "params": {
+                            "field": "event.action.keyword",
+                            "size": 5,
+                            "order": "desc",
+                            "orderBy": "1"
+                        }
+                    }
+                ]
+            }, ensure_ascii=False),
+            "uiStateJSON": "{}",
+            "kibanaSavedObjectMeta": search_source(RISK_QUERY)
+        }
+    }
+    saved_objects.append(viz_exec_risk_ips)
     
     # ─── DASHBOARDS ──────────────────────────────────────────────────────────
 
     executive_panels = [
-        {"id": "viz-system-health", "gridData": {"x": 0, "y": 0, "w": 24, "h": 15}},
-        {"id": "viz-top-threats", "gridData": {"x": 24, "y": 0, "w": 24, "h": 15}},
-        {"id": "viz-alert-trend", "gridData": {"x": 0, "y": 15, "w": 24, "h": 15}},
-        {"id": "viz-geoip-map", "gridData": {"x": 24, "y": 15, "w": 24, "h": 15}},
+        {"id": "viz-exec-total-events", "gridData": {"x": 0, "y": 0, "w": 12, "h": 10}},
+        {"id": "viz-exec-high-risk", "gridData": {"x": 12, "y": 0, "w": 12, "h": 10}},
+        {"id": "viz-exec-medium-risk", "gridData": {"x": 24, "y": 0, "w": 12, "h": 10}},
+        {"id": "viz-exec-risk-sources", "gridData": {"x": 36, "y": 0, "w": 12, "h": 10}},
+        {"id": "viz-system-health", "gridData": {"x": 0, "y": 10, "w": 16, "h": 14}},
+        {"id": "viz-exec-severity-distribution", "gridData": {"x": 16, "y": 10, "w": 16, "h": 14}},
+        {"id": "viz-exec-source-coverage", "gridData": {"x": 32, "y": 10, "w": 16, "h": 14}},
+        {"id": "viz-top-threats", "gridData": {"x": 0, "y": 24, "w": 24, "h": 15}},
+        {"id": "viz-alert-trend", "gridData": {"x": 24, "y": 24, "w": 24, "h": 15}},
+        {"id": "viz-geoip-map", "gridData": {"x": 0, "y": 39, "w": 24, "h": 18}},
+        {"id": "viz-exec-risk-ips", "gridData": {"x": 24, "y": 39, "w": 24, "h": 18}},
     ]
     saved_objects.append(
         build_dashboard(
             "executive-security-overview",
-            "Executive - Información de Seguridad",
-            "Panel ejecutivo con KPIs y amenazas para audiencia no técnica",
+            "Executive - Resumen de Seguridad",
+            "Panel ejecutivo con KPIs, amenazas, cobertura y tendencia de riesgo para audiencia no técnica",
             executive_panels,
-            refresh_interval={"pause": False, "value": 5000},
+            refresh_interval={"pause": False, "value": 10000},
+            time_from="now-24h",
+            time_to="now",
         )
     )
 

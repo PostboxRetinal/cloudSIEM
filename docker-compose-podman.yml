@@ -21,6 +21,7 @@ services:
   kibana:
     volumes:
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,z
+      - ./kibana/node.options:/usr/share/kibana/config/node.options:ro,z
 
   logstash:
     volumes:
