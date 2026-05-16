@@ -15,10 +15,11 @@ Uso:
 import argparse
 import random
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 BASE_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+BOGOTA_TZ = timezone(timedelta(hours=-5))
 
 EXTERNAL_IPS = [
     "185.220.101.34", "89.248.167.131", "194.165.16.11",
@@ -35,7 +36,7 @@ PATHS_SQLI   = [
 
 
 def ts_syslog():
-    return datetime.now(timezone.utc).strftime("%b %d %H:%M:%S")
+    return datetime.now(BOGOTA_TZ).strftime("%b %d %H:%M:%S")
 
 
 def ts_nginx():

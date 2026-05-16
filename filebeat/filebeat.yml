@@ -35,11 +35,6 @@ filebeat.inputs:
           target: ''
           fields:
             log.type: syslog
-      - dissect:
-          tokenizer: "%{syslog.timestamp} %{host.hostname} %{process.name}[%{process.pid}]: %{message}"
-          field: "message"
-          target_prefix: ""
-          ignore_failure: true
       - convert:
           fields:
             - {from: "process.pid", type: integer}

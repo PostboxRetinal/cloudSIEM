@@ -15,10 +15,11 @@ Uso:
 import argparse
 import json
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 BASE_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+BOGOTA_TZ = timezone(timedelta(hours=-5))
 
 INTERNAL_IPS = ["10.0.0.5", "192.168.1.20", "172.16.0.10"]
 EXTERNAL_IPS = [
@@ -31,7 +32,7 @@ PATHS_OK     = ["/", "/index.html", "/api/v1/status", "/api/v1/users", "/about",
 
 
 def ts_syslog():
-    return datetime.now(timezone.utc).strftime("%b %d %H:%M:%S")
+    return datetime.now(BOGOTA_TZ).strftime("%b %d %H:%M:%S")
 
 
 def ts_nginx():
@@ -124,18 +125,18 @@ def gen_auth_normal(count=10):
 
 # ---------------------------------------------------------------------------
 # AUTH - Logins fuera de horario laboral (R8.4 - Login SSH Fuera de Horario)
-# Genera eventos a las 06:00 GMT-5 (11:00 UTC) para que el pipeline Logstash
-# los etiquete con siem.after_hours_login=true (regla: hour < 7 || hour >= 20)
+# Genera eventos a las 02:30 GMT-5 para que el pipeline Logstash
+# los etiquete con siem.after_hours_login=true (regla: hour < 9 || hour >= 18)
 # ---------------------------------------------------------------------------
 def ts_syslog_off_hours():
-    """Timestamp a las 06:00 GMT-5 (11:00 UTC) fuera del horario laboral 07-20."""
-    now = datetime.now(timezone.utc)
-    off_hours = now.replace(hour=11, minute=0, second=0, microsecond=0)
+    """Timestamp a las 02:30 GMT-5 fuera del horario laboral 09-18."""
+    now = datetime.now(BOGOTA_TZ)
+    off_hours = now.replace(hour=2, minute=30, second=0, microsecond=0)
     return off_hours.strftime("%b %d %H:%M:%S")
 
 
 def gen_auth_after_hours(count=5):
-    """Genera logins SSH exitosos con timestamp a las 06:00 GMT-5 (11:00 UTC)."""
+    """Genera logins SSH exitosos con timestamp fuera del horario laboral."""
     ips = EXTERNAL_IPS[:3]
     lines = []
     for _ in range(count):
@@ -236,7 +237,7 @@ def main():
     if args.source in ("all", "auth"):
         print("Generando auth.log normal...")
         write_logs(gen_auth_normal(max(args.count // 2, 5)), args.auth_path)
-        print("Generando auth.log (fuera de horario laboral - 06:00 GMT-5 / 11:00 UTC)...")
+        print("Generando auth.log (fuera de horario laboral - 02:30 GMT-5)...")
         write_logs(gen_auth_after_hours(5), args.auth_path)
 
     if args.source in ("all", "nginx"):
