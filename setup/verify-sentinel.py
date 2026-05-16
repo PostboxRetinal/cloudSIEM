@@ -24,6 +24,20 @@ def run_az(args, text_output=False):
 
 
 def first_result_cell(query_payload):
+    if isinstance(query_payload, list):
+        if not query_payload:
+            return None
+        first_row = query_payload[0]
+        if not isinstance(first_row, dict):
+            return first_row
+        for key in ("Count", "count_", "count"):
+            if key in first_row:
+                return first_row[key]
+        for key, value in first_row.items():
+            if key not in ("TableName", "$table"):
+                return value
+        return None
+
     tables = query_payload.get("tables", []) if isinstance(query_payload, dict) else []
     if not tables or not tables[0].get("rows"):
         return None

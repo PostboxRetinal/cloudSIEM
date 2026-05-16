@@ -1,9 +1,11 @@
 # =============================================================================
 # Optional Microsoft Sentinel streaming overlay
 # Usage:
-#   set -a; . ./.env.sentinel; set +a
-#   podman-compose -f docker-compose.yml -f docker-compose-podman.yml \
-#     -f docker-compose-sentinel.yml up --build
+#   Docker Compose / Windows / WSL2:
+#     docker compose -f docker-compose.yml -f docker-compose-sentinel.yml up --build
+#   Podman / Linux:
+#     bash setup/run-podman-sentinel-stack.sh --build --force-recreate
+#     (adds docker-compose-sentinel-podman.yml for SELinux relabeling)
 # =============================================================================
 
 volumes:
@@ -23,7 +25,7 @@ services:
       - elastic
     volumes:
       - certs:/certs:ro
-      - ./setup:/app/setup:ro,z
+      - ./setup:/app/setup:ro
       - sentinel-forwarder-state:/state
     working_dir: /app
     environment:

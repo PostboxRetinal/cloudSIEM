@@ -1,20 +1,10 @@
 # Microsoft Sentinel para CloudSIEM
 
-Esta integracion agrega una capa cloud de deteccion con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envia eventos normalizados a una tabla custom de Log Analytics llamada `CloudSIEM_CL`.
+Esta integración agrega una capa cloud de detección con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envía eventos normalizados a una tabla custom de Log Analytics llamada `CloudSIEM_CL`.
 
-## Region sugerida
+## Región sugerida
 
-Usar `eastus`. Tiene buena disponibilidad para Log Analytics, Data Collection Rules, Data Collection Endpoints y Microsoft Sentinel en cuentas de estudiante. Si hay restriccion de cuota, usar `eastus2`.
-
-## Recursos creados
-
-- Resource group: `rg-cloudsiem-sentinel`
-- Log Analytics Workspace: `law-cloudsiem`
-- Microsoft Sentinel onboarding sobre el workspace
-- Custom table: `CloudSIEM_CL`
-- Data Collection Endpoint: `dce-cloudsiem`
-- Data Collection Rule: `dcr-cloudsiem`
-- 5 reglas scheduled de Sentinel para patrones sospechosos
+Usar `eastus`. Tiene buena disponibilidad para Log Analytics, Data Collection Rules, Data Collection Endpoints y Microsoft Sentinel en cuentas de estudiante. Si hay restricción de cuota, usar `eastus2`.
 
 ## Comandos Azure CLI
 
@@ -25,7 +15,7 @@ az version
 az bicep upgrade
 ```
 
-Iniciar sesion y seleccionar la suscripcion Student:
+Iniciar sesión y seleccionar la suscripción Student:
 
 ```bash
 az login
@@ -37,6 +27,7 @@ Registrar providers requeridos:
 
 ```bash
 az provider register --namespace Microsoft.OperationalInsights
+az provider register --namespace Microsoft.OperationsManagement
 az provider register --namespace Microsoft.Insights
 az provider register --namespace Microsoft.SecurityInsights
 az provider register --namespace Microsoft.Authorization
@@ -105,8 +96,6 @@ SENTINEL_DCR_IMMUTABLE_ID=$(az deployment group show \
 Crear `.env.sentinel` local:
 
 ```bash
-cp .env.sentinel.example .env.sentinel
-
 cat > .env.sentinel <<EOF
 AZURE_TENANT_ID=$AZURE_TENANT_ID
 AZURE_CLIENT_ID=$AZURE_CLIENT_ID
@@ -120,30 +109,35 @@ SENTINEL_LOOKBACK_MINUTES=15
 EOF
 ```
 
-## Ejecutar streaming continuo
+## Ejecutar streaming continuo con Podman
 
-En Linux con Podman:
+Instalar `podman-compose` en un entorno local del proyecto si no existe en el sistema:
+
+```bash
+python3 -m venv .venv-tools/podman-compose
+.venv-tools/podman-compose/bin/pip install podman-compose
+```
+
+Arrancar el stack con el launcher por etapas:
 
 ```bash
 bash setup/run-podman-sentinel-stack.sh --build --force-recreate
 ```
 
-El launcher aplica el relabeling SELinux solo en Podman y mantiene `docker-compose-sentinel.yml` portable para Docker Desktop y Windows.
+El script carga `.env` y `.env.sentinel`, ejecuta los jobs one-shot con `--no-deps`, añade el override Podman de Sentinel para el relabeling SELinux y arranca `sentinel-forwarder` al final. Esto evita el error de Podman Compose `container state improper` cuando una dependencia terminó correctamente pero ya no está corriendo.
 
 Para usar Docker Compose sin el override de Podman:
 
 ```bash
-set -a
-. ./.env.sentinel
-set +a
-
 docker compose \
+  --env-file .env \
+  --env-file .env.sentinel \
   -f docker-compose.yml \
   -f docker-compose-sentinel.yml \
   up --build
 ```
 
-## Validar ingestion y reglas
+## Validar ingesta y reglas
 
 ```bash
 python3 setup/verify-sentinel.py \
@@ -151,7 +145,7 @@ python3 setup/verify-sentinel.py \
   --workspace law-cloudsiem
 ```
 
-Consulta rapida por CLI:
+Consulta rápida por CLI:
 
 ```bash
 WORKSPACE_ID=$(az monitor log-analytics workspace show \
@@ -176,10 +170,10 @@ Esperar unos minutos. Las reglas scheduled corren cada 5 minutos y crean alertas
 
 ## Control de costos
 
-- El forwarder envia solo indices `logs-*`.
-- La tabla tiene retencion de 30 dias.
+- El forwarder envía solo índices `logs-*`.
+- La tabla tiene retención de 30 días.
 - El batch por defecto es de 500 eventos cada 10 segundos.
-- Para pausar el costo de ingestion, detener `sentinel-forwarder`.
+- Para pausar el costo de ingesta, detener `sentinel-forwarder`.
 
 Eliminar todos los recursos Azure del laboratorio:
 
