@@ -154,6 +154,8 @@ A medida que avance la implementación, este repositorio debería incorporar una
 
 ```text
 .
+├── .editorconfig
+├── .gitattributes
 ├── README.md
 ├── .github/
 │   ├── AGENTS.md
