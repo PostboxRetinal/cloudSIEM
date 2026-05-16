@@ -113,6 +113,10 @@ Verificar en Kibana -> Discover que los indices `logs-syslog-*`, `logs-auth-*`,
 python setup/verify-parse-rate.py
 ```
 
+Si ejecutas el verificador desde el host y no existe `./setup/certs/ca/ca.crt`,
+el script desactiva la verificación TLS automáticamente. Si prefieres forzarla,
+pasa `--cacert <ruta-real>` o `--insecure`.
+
 Debe reportar > 95%.
 
 ### 3. Generar ataques y verificar deteccion (R8.4, R8.5)

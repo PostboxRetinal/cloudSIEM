@@ -15,6 +15,7 @@ import os
 import sys
 import requests
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 urllib3_disable_warnings = False
 try:
@@ -50,6 +51,21 @@ def count_docs(session, host, index_pattern, cacert):
     except Exception as e:
         raise RuntimeError(f"Error consultando {index_pattern}: {e}")
 
+def resolve_cacert(cacert_path, insecure):
+    """Resuelve el CA para requests o desactiva TLS si no existe."""
+    if insecure:
+        return False
+
+    if cacert_path and Path(cacert_path).is_file():
+        return cacert_path
+
+    print(
+        f"{Y}  Advertencia:{RESET} no existe el CA en {cacert_path}; "
+        "se desactiva la verificación TLS.",
+        file=sys.stderr,
+    )
+    return False
+
 def main():
     parser = argparse.ArgumentParser(description="Verificar tasa de parseo de logs")
     parser.add_argument("--host",     default="https://localhost:9200")
@@ -68,7 +84,7 @@ def main():
 
     session = requests.Session()
     session.auth = (args.user, args.password)
-    cacert = False if args.insecure else (args.cacert or True)
+    cacert = resolve_cacert(args.cacert, args.insecure)
 
     total_exit = 0
     counts_by_index = {}
