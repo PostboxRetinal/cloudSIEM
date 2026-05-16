@@ -39,6 +39,7 @@ jobs:
         run: |
           shellcheck -S error \
             logstash/test-pipeline.sh \
+            setup/run-podman-sentinel-stack.sh \
             setup/provisioning/*.sh \
             setup/verify-cluster.sh
 
@@ -57,12 +58,27 @@ jobs:
             .github/workflows/ci.yml \
             docker-compose.yml \
             docker-compose-podman.yml \
+            docker-compose-sentinel.yml \
+            docker-compose-sentinel-podman.yml \
             filebeat/filebeat.yml \
             filebeat/filebeat-k8s.yml \
             filebeat/filebeat-daemonset.yaml \
             kibana/kibana.yml \
             logstash/config/logstash.yml \
             setup/provisioning/cert-instances.yml
+
+      - name: Check line endings
+        run: |
+          bad=0
+          while IFS=$'\t' read -r meta path; do
+            case "$meta" in
+              *"w/crlf"*|*"i/crlf"*)
+                printf 'CRLF detected: %s\t%s\n' "$meta" "$path" >&2
+                bad=1
+                ;;
+            esac
+          done < <(git ls-files --eol)
+          exit "$bad"
 
       - name: Validate JSON files
         run: |

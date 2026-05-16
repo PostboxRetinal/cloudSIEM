@@ -1,0 +1,10 @@
+CloudSIEM_CL
+| where EventDataset == "system.auth"
+| extend TagsText = tostring(Tags)
+| where EventAction == "authentication_failure" or TagsText has "auth_failure"
+| where isnotempty(SourceIp)
+| make-series FailedLogins=count() default=0 on TimeGenerated from ago(24h) to now() step 5m by SourceIp
+| extend (AnomalyFlag, AnomalyScore, Baseline) = series_decompose_anomalies(FailedLogins, 2.5, -1, "linefit")
+| mv-expand TimeGenerated to typeof(datetime), FailedLogins to typeof(long), AnomalyFlag to typeof(int), AnomalyScore to typeof(double), Baseline to typeof(double)
+| where AnomalyFlag == 1 and FailedLogins >= 5
+| project TimeGenerated, SourceIp, FailedLogins, Baseline, AnomalyScore

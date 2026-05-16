@@ -25,20 +25,40 @@ CloudSIEM es una plataforma SIEM académica basada en Elastic Stack para central
 
 ## Despliegue local con Podman en Linux
 
-El despliegue en Linux con Podman usa el archivo base y un override específico para Podman:
+El despliegue en Linux con Podman usa el launcher por etapas del repositorio:
 
 ```bash
 systemctl --user start podman.socket
-podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build
+bash setup/run-podman-sentinel-stack.sh --build --force-recreate --no-sentinel
 ```
 
-Para detener el entorno:
+Para incluir la integración opcional con Microsoft Sentinel:
+
+```bash
+bash setup/run-podman-sentinel-stack.sh --build --force-recreate
+```
+
+Para detener el stack local:
 
 ```bash
 podman-compose -f docker-compose.yml -f docker-compose-podman.yml down
 ```
 
+Para detener el stack con Sentinel:
+
+```bash
+podman-compose -f docker-compose.yml -f docker-compose-podman.yml -f docker-compose-sentinel.yml -f docker-compose-sentinel-podman.yml down
+```
+
 El override `docker-compose-podman.yml` configura `userns_mode: keep-id` en Filebeat, relabeling SELinux para bind mounts y el socket rootless de Podman desde `$XDG_RUNTIME_DIR/podman/podman.sock`.
+
+El launcher ejecuta los jobs one-shot con el orden correcto y evita los fallos de Podman Compose con servicios one-shot (`setup`, `cleanup-indices`, `ilm-setup`, `data-views-setup` y `dashboards-import`) que terminan correctamente pero no quedan en estado `running`. En Sentinel, el relabeling SELinux queda en `docker-compose-sentinel-podman.yml` para que `docker-compose-sentinel.yml` siga siendo portable en Windows y Docker Desktop.
+
+Para Windows, Docker Desktop o WSL2 con Sentinel, usar:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose-sentinel.yml up --build
+```
 
 ## Arquitectura propuesta
 
@@ -122,18 +142,28 @@ Para cada escenario se recomienda documentar:
 - tiempo de detección;
 - acción de respuesta definida en el playbook.
 
+## Integración opcional con Microsoft Sentinel
+
+El repositorio incluye una ruta cloud para detección continua con Microsoft Sentinel. La integración mantiene Elastic como SIEM local y agrega un forwarder que envía eventos normalizados de `logs-*` a una tabla `CloudSIEM_CL` en Log Analytics mediante Azure Monitor Logs Ingestion API.
+
+Los recursos Azure, reglas KQL y comandos CLI están documentados en [`azure/sentinel/README.md`](azure/sentinel/README.md). Esta ruta agrega reglas scheduled de Sentinel para anomalías de autenticación SSH, patrones web sospechosos, port scan, login fuera de horario y rutas sensibles.
+
 ## Estructura esperada del repositorio
 
 A medida que avance la implementación, este repositorio debería incorporar una estructura similar a la siguiente:
 
 ```text
 .
+├── .editorconfig
+├── .gitattributes
 ├── README.md
 ├── .github/
 │   ├── AGENTS.md
 │   └── copilot-instructions.md
 ├── docker-compose.yml
 ├── docker-compose-podman.yml
+├── docker-compose-sentinel.yml
+├── docker-compose-sentinel-podman.yml
 ├── filebeat/
 ├── logstash/
 ├── kibana/

@@ -6,8 +6,8 @@
 - `develop` is the working branch; `main` is stable and PR-only.
 
 ## Run The Stack
-- Use explicit Compose files from the repository root: `podman-compose -f docker-compose.yml -f docker-compose-podman.yml up --build`.
-- Stop the stack with the same file order: `podman-compose -f docker-compose.yml -f docker-compose-podman.yml down`.
+- For Podman on Linux, use `bash setup/run-podman-sentinel-stack.sh --build --force-recreate --no-sentinel` for the local stack, or remove `--no-sentinel` when Sentinel is enabled.
+- Stop the matching stack with `podman-compose -f docker-compose.yml -f docker-compose-podman.yml down`, or add `-f docker-compose-sentinel.yml -f docker-compose-sentinel-podman.yml` for Sentinel.
 - `docker-compose.yml` is the universal base; `docker-compose-podman.yml` is the Linux + Podman override and owns SELinux relabeling.
 - The Podman override maps `$XDG_RUNTIME_DIR/podman/podman.sock` to `/var/run/docker.sock` for Filebeat metadata enrichment.
 - The cluster bootstrap takes about 90 seconds before health checks are meaningful.

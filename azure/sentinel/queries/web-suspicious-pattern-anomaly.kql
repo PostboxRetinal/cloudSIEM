@@ -1,0 +1,16 @@
+CloudSIEM_CL
+| where EventDataset == "nginx.access"
+| extend TagsText = tostring(Tags)
+| where HttpStatusCode == 404
+    or SensitivePath == true
+    or SqliDetected == true
+    or XssDetected == true
+    or PathTraversal == true
+    or ScannerDetected == true
+    or TagsText has_any ("http_404", "sensitive_path_access", "sqli_detected", "xss_detected", "path_traversal", "security_scanner")
+| where isnotempty(SourceIp)
+| make-series SuspiciousRequests=count() default=0 on TimeGenerated from ago(24h) to now() step 5m by SourceIp
+| extend (AnomalyFlag, AnomalyScore, Baseline) = series_decompose_anomalies(SuspiciousRequests, 2.5, -1, "linefit")
+| mv-expand TimeGenerated to typeof(datetime), SuspiciousRequests to typeof(long), AnomalyFlag to typeof(int), AnomalyScore to typeof(double), Baseline to typeof(double)
+| where AnomalyFlag == 1 and SuspiciousRequests >= 10
+| project TimeGenerated, SourceIp, SuspiciousRequests, Baseline, AnomalyScore

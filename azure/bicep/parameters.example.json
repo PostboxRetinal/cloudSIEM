@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "workspaceName": {
+      "value": "law-cloudsiem"
+    },
+    "dataCollectionEndpointName": {
+      "value": "dce-cloudsiem"
+    },
+    "dataCollectionRuleName": {
+      "value": "dcr-cloudsiem"
+    },
+    "forwarderPrincipalObjectId": {
+      "value": ""
+    },
+    "retentionInDays": {
+      "value": 30
+    },
+    "deployAnalyticsRules": {
+      "value": true
+    }
+  }
+}
