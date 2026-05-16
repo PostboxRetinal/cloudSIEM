@@ -1,5 +1,6 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
+set -o pipefail 2>/dev/null || true
 
 CERT_DIR="config/certs"
 INSTANCES_FILE="/setup/provisioning/cert-instances.yml"
