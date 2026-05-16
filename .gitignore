@@ -1,18 +1,10 @@
+# Directorios y archivos a ignorar
 setup/__pycache__/
-*.py[cod]
+.ruff_cache/
 
-# Ignorar variables de entorno y certificados locales del entorno de desarrollo
+# Ignorar variables de entorno
 .env
 .env.sentinel
-.venv-tools/
-certs/
-*-data/
-elasticsearch/**/data/
-kibana-data/
-logstash-data/
 
-# Logs y runtime
-logs/
-filebeat/logs/
-
-.ruff_cache/
+# Logs
+logs
