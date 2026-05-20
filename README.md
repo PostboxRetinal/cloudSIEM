@@ -1,6 +1,6 @@
 # CloudSIEM
 
-Guía del proyecto y del trabajo en `develop`.
+Guía del proyecto y referencia de entrega para `main`.
 
 ## Resumen
 
@@ -22,6 +22,20 @@ CloudSIEM es una plataforma SIEM académica basada en Elastic Stack para central
 - `Filebeat` para recolección de logs.
 - `Docker Compose` como despliegue principal; `Kubernetes` como ruta complementaria.
 - `Python` para generadores de logs y utilidades.
+
+## Referencias rápidas
+
+| Recurso | Ruta |
+| --- | --- |
+| Guía de generación de logs | [`docs/log-generation-guide.md`](docs/log-generation-guide.md) |
+| Playbooks de respuesta a incidentes | [`docs/playbooks/README.md`](docs/playbooks/README.md) |
+| Playbook de fuerza bruta SSH | [`docs/playbooks/brute-force-response.md`](docs/playbooks/brute-force-response.md) |
+| Playbook de SQLi y rutas sensibles | [`docs/playbooks/sqli-response.md`](docs/playbooks/sqli-response.md) |
+| Integración con Microsoft Sentinel | [`azure/sentinel/README.md`](azure/sentinel/README.md) |
+| Resumen de Sentinel en documentación | [`docs/azure-sentinel.md`](docs/azure-sentinel.md) |
+| Presentación del proyecto | [`docs/Cloud-Native SIEM con Elastic Stack.pdf`](docs/Cloud-Native%20SIEM%20con%20Elastic%20Stack.pdf) |
+| Reglas de detección | [`rules/`](rules/) |
+| Dashboards importables | [`setup/dashboards/`](setup/dashboards/) |
 
 ## Despliegue local con Podman en Linux
 
@@ -83,15 +97,11 @@ Pipeline de ingesta
       `- routing de errores
 
 Almacenamiento y gestión
-Almacenamiento y gestión
   `- Elasticsearch
-      |- índices ECS
       |- índices ECS
       |- ILM
       `- retención de 30 días
-      `- retención de 30 días
 
-Analítica y visualización
 Analítica y visualización
   `- Kibana SIEM / Dashboards / Discover
 
@@ -103,20 +113,16 @@ Detección
 ## Fuentes de logs esperadas
 
 El proyecto debe integrar al menos 3 fuentes de logs diferentes. Las fuentes objetivo definidas para la sustentación son:
-El proyecto debe integrar al menos 3 fuentes de logs diferentes. Las fuentes objetivo definidas para la sustentación son:
 
 - logs de sistema (`syslog`);
 - logs de seguridad (`auth.log`);
-- logs de aplicación web (`nginx` o `apache`);
 - logs de aplicación web (`nginx` o `apache`);
 - logs de Kubernetes.
 
 Todos los eventos deben quedar visibles en Kibana y, en la medida de lo posible, alineados con `ECS` (Elastic Common Schema).
 
 ## Requerimientos funcionales y técnicos
-## Requerimientos funcionales y técnicos
 
-| ID | Requerimiento | Tecnologías principales | Criterio de aceptación |
 | ID | Requerimiento | Tecnologías principales | Criterio de aceptación |
 | --- | --- | --- | --- |
 | `R8.1` | Desplegar `Elasticsearch` con 3 nodos, `Logstash` y `Kibana` con `Docker Compose`; configurar índices con `ILM` y retención de 30 días. | `Elasticsearch`, `Docker Compose` | Clúster en estado `green`; `ILM` aplicado y verificado; evidencia de paso a `warm` y/o `cold` en prueba acelerada. |
@@ -132,29 +138,23 @@ Todos los eventos deben quedar visibles en Kibana y, en la medida de lo posible,
 
 - Stack ELK desplegado con mínimo 3 fuentes de logs diferentes.
 - Mínimo 5 reglas de detección de amenazas configuradas y probadas.
-- Stack ELK desplegado con mínimo 3 fuentes de logs diferentes.
-- Mínimo 5 reglas de detección de amenazas configuradas y probadas.
 - Dashboard SIEM con vista ejecutiva y operacional.
 - Playbook de respuesta para mínimo 2 tipos de incidente en [`docs/playbooks/`](docs/playbooks/README.md).
-
-## Presentación
-
-Las diapositivas de la presentación también están disponibles en el repositorio, dentro de [`docs/Cloud-Native SIEM con Elastic Stack.pdf`](docs/Cloud-Native%20SIEM%20con%20Elastic%20Stack.pdf).
+- Presentación del proyecto en [`docs/Cloud-Native SIEM con Elastic Stack.pdf`](docs/Cloud-Native%20SIEM%20con%20Elastic%20Stack.pdf).
 
 ## Escenarios de ataque a demostrar
 
-Los escenarios sugeridos para la validación del sistema son:
 Los escenarios sugeridos para la validación del sistema son:
 
 1. `Brute force SSH`
 2. `Escaneo de puertos con nmap`
 3. `Inyección SQL registrada en logs web`
-3. `Inyección SQL registrada en logs web`
+
+Para generar logs de prueba y validar detecciones, usar la [guía de generación de logs](docs/log-generation-guide.md).
 
 Para cada escenario se recomienda documentar:
 
 - fuente del log afectado;
-- patrón esperado en los eventos;
 - patrón esperado en los eventos;
 - regla o alerta asociada;
 - evidencia en Kibana;
@@ -167,10 +167,7 @@ El repositorio incluye una ruta cloud para detección continua con Microsoft Sen
 
 Los recursos Azure, reglas KQL y comandos CLI están documentados en [`azure/sentinel/README.md`](azure/sentinel/README.md). Esta ruta agrega reglas programadas de Sentinel para anomalías de autenticación SSH, patrones web sospechosos, escaneo de puertos, login fuera de horario y rutas sensibles.
 
-## Estructura esperada del repositorio
-
-A medida que avance la implementación, este repositorio debería incorporar una estructura similar a la siguiente:
-A medida que avance la implementación, este repositorio debería incorporar una estructura similar a la siguiente:
+## Estructura principal del repositorio
 
 ```text
 .
@@ -179,17 +176,23 @@ A medida que avance la implementación, este repositorio debería incorporar una
 ├── README.md
 ├── .github/
 │   ├── AGENTS.md
-│   └── copilot-instructions.md
+│   ├── copilot-instructions.md
+│   └── workflows/
+├── azure/
+│   ├── bicep/
+│   └── sentinel/
 ├── docker-compose.yml
 ├── docker-compose-podman.yml
 ├── docker-compose-sentinel.yml
 ├── docker-compose-sentinel-podman.yml
-├── filebeat/
-├── logstash/
-├── kibana/
-├── setup/
-├── rules/
 ├── docs/
+│   └── playbooks/
+├── elasticsearch/
+├── filebeat/
+├── kibana/
+├── logstash/
+├── rules/
+├── setup/
 └── logs/
 ```
 
@@ -230,12 +233,9 @@ Verificar que:
 ## Criterios de éxito
 
 Se considerará que el proyecto cumple su objetivo si logra:
-Se considerará que el proyecto cumple su objetivo si logra:
 
 - centralizar eventos de seguridad en una sola plataforma;
 - detectar ataques simulados con latencia baja;
-- ofrecer visibilidad técnica y ejecutiva;
-- facilitar investigación y respuesta mediante dashboards y playbooks.
 - ofrecer visibilidad técnica y ejecutiva;
 - facilitar investigación y respuesta mediante dashboards y playbooks.
 
@@ -243,7 +243,7 @@ Se considerará que el proyecto cumple su objetivo si logra:
 
 Estado actual: `implementación en curso`.
 
-Este README define el alcance, objetivos y entregables esperados del proyecto, junto con la guía operativa para trabajar en `develop`.
+Este README define el alcance, objetivos y entregables esperados del proyecto, junto con la referencia operativa para la rama estable `main`.
 
 ## Nota
 
