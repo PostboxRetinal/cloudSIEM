@@ -109,7 +109,7 @@ Todos los eventos deben quedar visibles en Kibana y, en la medida de lo posible,
 
 | ID | Requerimiento | Tecnologías principales | Criterio de aceptación |
 | --- | --- | --- | --- |
-| `R8.1` | Desplegar `Elasticsearch` con 3 nodos, `Logstash` y `Kibana` con `Docker Compose`; configurar índices con `ILM` y retención de 30 días. | `Elasticsearch`, `Docker Compose` | Cluster en estado `green`; `ILM` aplicado y verificado; evidencia de paso a `warm` y/o `cold` en prueba acelerada. |
+| `R8.1` | Desplegar `Elasticsearch` con 3 nodos, `Logstash` y `Kibana` con `Docker Compose`; configurar índices con `ILM` y retención de 30 días. | `Elasticsearch`, `Docker Compose` | Clúster en estado `green`; `ILM` aplicado y verificado; evidencia de paso a `warm` y/o `cold` en prueba acelerada. |
 | `R8.2` | Configurar ingesta de logs desde mínimo 3 fuentes: sistema (`syslog`), aplicación web (`nginx` o `apache`), Kubernetes y/o seguridad (`auth.log`). | `Filebeat`, `Logstash` | Logs visibles en Kibana; campos `ECS` correctamente mapeados. |
 | `R8.3` | Implementar pipeline de `Logstash` con filtros `grok`, `mutate` y `geoip`; rechazar logs malformados a un índice de errores separado. | `Logstash`, `Grok`, `GeoIP` | Tasa de parseo exitoso mayor al 95%; logs rechazados almacenados con el motivo documentado. |
 | `R8.4` | Implementar mínimo 5 reglas de detección: brute force SSH, escaneo de puertos, múltiples errores `404`, login fuera de horario y acceso a rutas sensibles. | `Kibana SIEM` | Cada regla debe dispararse correctamente con logs de prueba generados para ese escenario. |
@@ -123,7 +123,7 @@ Todos los eventos deben quedar visibles en Kibana y, en la medida de lo posible,
 - Stack ELK desplegado con mínimo 3 fuentes de logs diferentes.
 - Mínimo 5 reglas de detección de amenazas configuradas y probadas.
 - Dashboard SIEM con vista ejecutiva y operacional.
-- Playbook de respuesta para mínimo 2 tipos de incidente.
+- Playbook de respuesta para mínimo 2 tipos de incidente en [`docs/playbooks/`](docs/playbooks/README.md).
 
 ## Escenarios de ataque a demostrar
 
@@ -146,7 +146,7 @@ Para cada escenario se recomienda documentar:
 
 El repositorio incluye una ruta cloud para detección continua con Microsoft Sentinel. La integración mantiene Elastic como SIEM local y agrega un forwarder que envía eventos normalizados de `logs-*` a una tabla `CloudSIEM_CL` en Log Analytics mediante Azure Monitor Logs Ingestion API.
 
-Los recursos Azure, reglas KQL y comandos CLI están documentados en [`azure/sentinel/README.md`](azure/sentinel/README.md). Esta ruta agrega reglas scheduled de Sentinel para anomalías de autenticación SSH, patrones web sospechosos, port scan, login fuera de horario y rutas sensibles.
+Los recursos Azure, reglas KQL y comandos CLI están documentados en [`azure/sentinel/README.md`](azure/sentinel/README.md). Esta ruta agrega reglas programadas de Sentinel para anomalías de autenticación SSH, patrones web sospechosos, escaneo de puertos, login fuera de horario y rutas sensibles.
 
 ## Estructura esperada del repositorio
 

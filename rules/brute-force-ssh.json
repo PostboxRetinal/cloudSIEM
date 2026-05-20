@@ -1,7 +1,7 @@
 {
   "id": "siem-rule-brute-force-ssh",
   "name": "SIEM - Brute Force SSH Detectado",
-  "description": "Detecta intentos de brute force SSH: 5 o más fallos de autenticación desde la misma IP en 60 segundos. Cubre usuarios válidos e inválidos. Severidad alta — responder según playbook docs/playbook-brute-force.md",
+  "description": "Detecta intentos de brute force SSH: 5 o más fallos de autenticación desde la misma IP en 60 segundos. Cubre usuarios válidos e inválidos. Severidad alta — responder según playbook docs/playbooks/brute-force-response.md",
   "risk_score": 85,
   "severity": "high",
   "enabled": true,

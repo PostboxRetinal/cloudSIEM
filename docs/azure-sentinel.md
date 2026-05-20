@@ -1,20 +1,20 @@
 # Microsoft Sentinel para CloudSIEM
 
-Esta integracion agrega una capa cloud de deteccion con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envia eventos normalizados a una tabla custom de Log Analytics llamada `CloudSIEM_CL`.
+Esta integración agrega una capa cloud de detección con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envía eventos normalizados a una tabla personalizada de Log Analytics llamada `CloudSIEM_CL`.
 
-## Region sugerida
+## Región sugerida
 
-Usar `eastus`. Tiene buena disponibilidad para Log Analytics, Data Collection Rules, Data Collection Endpoints y Microsoft Sentinel en cuentas de estudiante. Si hay restriccion de cuota, usar `eastus2`.
+Usar `eastus`. Tiene buena disponibilidad para Log Analytics, Data Collection Rules, Data Collection Endpoints y Microsoft Sentinel en cuentas de estudiante. Si hay restricción de cuota, usar `eastus2`.
 
 ## Recursos creados
 
 - Resource group: `rg-cloudsiem-sentinel`
 - Log Analytics Workspace: `law-cloudsiem`
 - Microsoft Sentinel onboarding sobre el workspace
-- Custom table: `CloudSIEM_CL`
+- Tabla personalizada: `CloudSIEM_CL`
 - Data Collection Endpoint: `dce-cloudsiem`
 - Data Collection Rule: `dcr-cloudsiem`
-- 5 reglas scheduled de Sentinel para patrones sospechosos
+- 5 reglas programadas de Sentinel para patrones sospechosos
 
 ## Comandos Azure CLI
 
@@ -25,7 +25,7 @@ az version
 az bicep upgrade
 ```
 
-Iniciar sesion y seleccionar la suscripcion Student:
+Iniciar sesión y seleccionar la suscripción Student:
 
 ```bash
 az login
@@ -33,7 +33,7 @@ az account list --output table
 az account set --subscription "<student-subscription-id>"
 ```
 
-Registrar providers requeridos:
+Registrar proveedores requeridos:
 
 ```bash
 az provider register --namespace Microsoft.OperationalInsights
@@ -42,7 +42,7 @@ az provider register --namespace Microsoft.SecurityInsights
 az provider register --namespace Microsoft.Authorization
 ```
 
-Crear el resource group:
+Crear el grupo de recursos:
 
 ```bash
 az group create \
@@ -75,7 +75,7 @@ AZURE_OBJECT_ID=$(az ad sp create \
   --output tsv)
 ```
 
-Desplegar Sentinel, la tabla custom, DCR/DCE y las reglas:
+Desplegar Sentinel, la tabla personalizada, DCR/DCE y las reglas:
 
 ```bash
 az deployment group create \
@@ -143,7 +143,7 @@ docker compose \
   up --build
 ```
 
-## Validar ingestion y reglas
+## Validar ingesta y reglas
 
 ```bash
 python3 setup/verify-sentinel.py \
@@ -151,7 +151,7 @@ python3 setup/verify-sentinel.py \
   --workspace law-cloudsiem
 ```
 
-Consulta rapida por CLI:
+Consulta rápida por CLI:
 
 ```bash
 WORKSPACE_ID=$(az monitor log-analytics workspace show \
@@ -172,14 +172,14 @@ az monitor log-analytics query \
 python3 setup/orchestrate-logs.py --mode attacks
 ```
 
-Esperar unos minutos. Las reglas scheduled corren cada 5 minutos y crean alertas/incidentes si la consulta devuelve resultados.
+Esperar unos minutos. Las reglas programadas corren cada 5 minutos y crean alertas/incidentes si la consulta devuelve resultados.
 
 ## Control de costos
 
-- El forwarder envia solo indices `logs-*`.
-- La tabla tiene retencion de 30 dias.
+- El forwarder envía solo índices `logs-*`.
+- La tabla tiene retención de 30 días.
 - El batch por defecto es de 500 eventos cada 10 segundos.
-- Para pausar el costo de ingestion, detener `sentinel-forwarder`.
+- Para pausar el costo de ingesta, detener `sentinel-forwarder`.
 
 Eliminar todos los recursos Azure del laboratorio:
 

@@ -1,6 +1,6 @@
 # Microsoft Sentinel para CloudSIEM
 
-Esta integración agrega una capa cloud de detección con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envía eventos normalizados a una tabla custom de Log Analytics llamada `CloudSIEM_CL`.
+Esta integración agrega una capa cloud de detección con Microsoft Sentinel. El stack local sigue usando Elastic para ingesta, parsing y dashboards; un forwarder continuo consulta `logs-*` en Elasticsearch y envía eventos normalizados a una tabla personalizada de Log Analytics llamada `CloudSIEM_CL`.
 
 ## Región sugerida
 
@@ -23,7 +23,7 @@ az account list --output table
 az account set --subscription "<student-subscription-id>"
 ```
 
-Registrar providers requeridos:
+Registrar proveedores requeridos:
 
 ```bash
 az provider register --namespace Microsoft.OperationalInsights
@@ -33,7 +33,7 @@ az provider register --namespace Microsoft.SecurityInsights
 az provider register --namespace Microsoft.Authorization
 ```
 
-Crear el resource group:
+Crear el grupo de recursos:
 
 ```bash
 az group create \
@@ -66,7 +66,7 @@ AZURE_OBJECT_ID=$(az ad sp create \
   --output tsv)
 ```
 
-Desplegar Sentinel, la tabla custom, DCR/DCE y las reglas:
+Desplegar Sentinel, la tabla personalizada, DCR/DCE y las reglas:
 
 ```bash
 az deployment group create \
@@ -166,7 +166,7 @@ az monitor log-analytics query \
 python3 setup/orchestrate-logs.py --mode attacks
 ```
 
-Esperar unos minutos. Las reglas scheduled corren cada 5 minutos y crean alertas/incidentes si la consulta devuelve resultados.
+Esperar unos minutos. Las reglas programadas corren cada 5 minutos y crean alertas/incidentes si la consulta devuelve resultados.
 
 ## Control de costos
 
