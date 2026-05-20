@@ -127,6 +127,10 @@ Todos los eventos deben quedar visibles en Kibana y, en la medida de lo posible,
 - Dashboard SIEM con vista ejecutiva y operacional.
 - Playbook de respuesta para mínimo 2 tipos de incidente en [`docs/playbooks/`](docs/playbooks/README.md).
 
+## Presentación
+
+Las diapositivas de la presentación también están disponibles en el repositorio, dentro de [`docs/Cloud-Native SIEM con Elastic Stack.pdf`](docs/Cloud-Native%20SIEM%20con%20Elastic%20Stack.pdf).
+
 ## Escenarios de ataque a demostrar
 
 Los escenarios sugeridos para la validación del sistema son:
