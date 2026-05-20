@@ -25,6 +25,8 @@ CloudSIEM es una plataforma SIEM académica basada en Elastic Stack para central
 
 ## Despliegue local con Podman en Linux
 
+Si se requiere desplegar el stack en local, solicitar al equipo de desarrollo las variables de entorno vigentes antes de ejecutar los comandos. Estas variables normalmente viven en `.env` y, si se habilita Sentinel, en `.env.sentinel`. No versionar credenciales ni secretos en el repositorio.
+
 El despliegue en Linux con Podman usa el launcher por etapas del repositorio:
 
 ```bash
