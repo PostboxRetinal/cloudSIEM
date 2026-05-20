@@ -1,0 +1,10 @@
+# Directorios y archivos a ignorar
+setup/__pycache__/
+.ruff_cache/
+
+# Ignorar variables de entorno
+.env
+.env.sentinel
+
+# Logs
+logs

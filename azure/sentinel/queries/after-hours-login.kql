@@ -1,0 +1,8 @@
+CloudSIEM_CL
+| where EventDataset == "system.auth"
+| extend TagsText = tostring(Tags)
+| where EventAction == "authentication_success" or AfterHoursLogin == true or TagsText has "after_hours_login"
+| extend LocalTime = datetime_utc_to_local(TimeGenerated, "America/Bogota")
+| extend LocalHour = hourofday(LocalTime), LocalWeekDay = toint(dayofweek(LocalTime) / 1d)
+| where AfterHoursLogin == true or LocalWeekDay in (0, 6) or LocalHour < 9 or LocalHour >= 18
+| project TimeGenerated, SourceIp, UserName, HostName, EventAction, LocalTime, Message

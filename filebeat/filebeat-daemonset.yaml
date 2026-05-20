@@ -1,0 +1,219 @@
+# =============================================================================
+# Filebeat DaemonSet — Kubernetes
+# Despliega un pod de Filebeat en CADA nodo del cluster
+# =============================================================================
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: kube-system
+  labels:
+    app: filebeat
+    project: siem
+data:
+  filebeat.yml: |-
+    filebeat.inputs:
+      - type: filestream
+        id: k8s-containers
+        prospector.scanner.symlinks: true
+        paths:
+          - /var/log/containers/*.log
+        fields:
+          event.module: kubernetes
+          event.kind: event
+        fields_under_root: true
+        parsers:
+          - container:
+              stream: all
+
+    processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+          in_cluster: true
+          matchers:
+            - logs_path:
+                logs_path: /var/log/containers/
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - add_fields:
+          target: ecs
+          fields:
+            version: "8.0"
+      - drop_fields:
+          fields: ["agent.ephemeral_id", "log.offset"]
+          ignore_missing: true
+      - script:
+          lang: javascript
+          id: k8s-classifier
+          source: >
+            function process(event) {
+              var ns  = event.Get("kubernetes.namespace") || "unknown";
+              var pod = event.Get("kubernetes.pod.name")  || "unknown";
+              var ctr = event.Get("kubernetes.container.name") || "unknown";
+              event.Put("orchestrator.type",              "kubernetes");
+              event.Put("orchestrator.namespace",          ns);
+              event.Put("orchestrator.resource.name",      pod);
+              event.Put("container.name",                  ctr);
+              if (ns === "kube-system") {
+                event.Put("event.dataset", "kubernetes.system");
+              } else {
+                event.Put("event.dataset", "kubernetes.container");
+              }
+              return event;
+            }
+
+    output.logstash:
+      hosts: ["${LOGSTASH_HOST}"]
+
+    logging.level: warning
+    logging.to_files: false
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: kube-system
+  labels:
+    app: filebeat
+    project: siem
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+        project: siem
+    spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      containers:
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:9.3.3
+          args: ["-c", "/etc/filebeat.yml", "-e"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: LOGSTASH_HOST
+              value: "logstash.siem.svc.cluster.local:5044"
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-credentials
+                  key: password
+          securityContext:
+            runAsUser: 0
+            capabilities:
+              add:
+                - DAC_READ_SEARCH
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu:    "100m"
+            limits:
+              memory: "200Mi"
+              cpu:    "500m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/filebeat.yml
+              subPath:   filebeat.yml
+              readOnly:  true
+            - name: data
+              mountPath: /usr/share/filebeat/data
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly:  true
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly:  true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly:  true
+            - name: dockersock
+              mountPath: /var/run/docker.sock
+              readOnly:  true
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -f http://localhost:5066/stats || exit 1
+            initialDelaySeconds: 60
+            periodSeconds:       30
+
+      volumes:
+        - name: config
+          configMap:
+            name: filebeat-config
+            defaultMode: 0640
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: dockersock
+          hostPath:
+            path: /var/run/docker.sock
+        - name: data
+          hostPath:
+            path: /var/lib/filebeat-data
+            type: DirectoryOrCreate
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+  labels:
+    app: filebeat
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["apps"]
+    resources:
+      - replicasets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: kube-system
+  labels:
+    app: filebeat
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io

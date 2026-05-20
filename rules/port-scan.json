@@ -1,0 +1,80 @@
+{
+  "id": "siem-rule-port-scan",
+  "name": "SIEM - Escaneo de Puertos Detectado",
+  "description": "Detecta escaneos de puertos: una misma IP origen contacta 20 o más puertos de destino distintos en 30 segundos. Cubre nmap SYN scan, connect scan y escaneos UDP. Alta cardinalidad de puertos destino es indicador fuerte de reconocimiento.",
+  "risk_score": 73,
+  "severity": "medium",
+  "enabled": true,
+  "type": "threshold",
+  "query": "event.category:\"network\" AND event.action:\"firewall_block\" AND tags:\"firewall_block\" AND network.transport:(\"tcp\" OR \"udp\" OR \"TCP\" OR \"UDP\")",
+  "language": "kuery",
+  "index": ["logs-syslog*"],
+  "threshold": {
+    "field": ["source.ip.keyword"],
+    "value": 20,
+    "cardinality": [
+      {
+        "field": "destination.port",
+        "value": 20
+      }
+    ]
+  },
+  "from": "now-30s",
+  "interval": "1m",
+  "max_signals": 100,
+  "tags": [
+    "SIEM",
+    "Port Scan",
+    "Reconnaissance",
+    "T1046",
+    "Discovery"
+  ],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0007",
+        "name": "Discovery",
+        "reference": "https://attack.mitre.org/tactics/TA0007/"
+      },
+      "technique": [
+        {
+          "id": "T1046",
+          "name": "Network Service Discovery",
+          "reference": "https://attack.mitre.org/techniques/T1046/"
+        }
+      ]
+    },
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0043",
+        "name": "Reconnaissance",
+        "reference": "https://attack.mitre.org/tactics/TA0043/"
+      },
+      "technique": [
+        {
+          "id": "T1595",
+          "name": "Active Scanning",
+          "reference": "https://attack.mitre.org/techniques/T1595/",
+          "subtechnique": [
+            {
+              "id": "T1595.001",
+              "name": "Scanning IP Blocks",
+              "reference": "https://attack.mitre.org/techniques/T1595/001/"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "note": "## Investigación\n1. Identificar `source.ip` y `destination.ip` en la alerta\n2. Revisar `destination.port` para entender qué servicios está buscando\n3. Correlacionar con logs-auth* — ¿intentó acceder a algún servicio abierto?\n4. Verificar si hay intentos de conexión exitosa tras el escaneo\n\n## Contención\n- Bloquear IP inmediatamente en firewall perimetral\n- Revisar si la IP pertenece a un escáner interno autorizado (Nessus, OpenVAS)\n\n## Falsos positivos esperados\n- Escáneres de seguridad internos programados (Nessus, Qualys)\n- Healthchecks de balanceadores de carga que prueban múltiples puertos",
+  "false_positives": [
+    "Escáneres de vulnerabilidades internos autorizados (Nessus, OpenVAS, Qualys)",
+    "Monitoreo de disponibilidad que verifica múltiples puertos de servicio"
+  ],
+  "author": ["Equipo SIEM - Proyecto 8"],
+  "license": "Elastic License v2",
+  "version": 1
+}

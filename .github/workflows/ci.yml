@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lint tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff yamllint
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint Python
+        run: ruff check --select E9,F63,F7,F82 setup
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck -S error \
+            logstash/test-pipeline.sh \
+            setup/run-podman-sentinel-stack.sh \
+            setup/provisioning/*.sh \
+            setup/verify-cluster.sh
+
+      - name: Lint YAML
+        run: |
+          yamllint -d '{
+            extends: relaxed,
+            rules: {
+              colons: disable,
+              document-start: disable,
+              indentation: disable,
+              line-length: disable,
+              truthy: disable
+            }
+          }' \
+            .github/workflows/ci.yml \
+            docker-compose.yml \
+            docker-compose-podman.yml \
+            docker-compose-sentinel.yml \
+            docker-compose-sentinel-podman.yml \
+            filebeat/filebeat.yml \
+            filebeat/filebeat-k8s.yml \
+            filebeat/filebeat-daemonset.yaml \
+            kibana/kibana.yml \
+            logstash/config/logstash.yml \
+            setup/provisioning/cert-instances.yml
+
+      - name: Check line endings
+        run: |
+          bad=0
+          while IFS=$'\t' read -r meta path; do
+            case "$meta" in
+              *"w/crlf"*|*"i/crlf"*)
+                printf 'CRLF detected: %s\t%s\n' "$meta" "$path" >&2
+                bad=1
+                ;;
+            esac
+          done < <(git ls-files --eol)
+          exit "$bad"
+
+      - name: Validate JSON files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in sorted(Path('.').rglob('*.json')):
+              with path.open(encoding='utf-8') as handle:
+                  json.load(handle)
+              print(path)
+          PY
+
+  static-tests:
+    name: Static Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python scripts
+        run: python -m compileall setup
+
+      - name: Validate dashboard generation
+        run: |
+          python setup/create-dashboards-complete.py
+          git diff --exit-code setup/dashboards/executive-operational-dashboards.ndjson
+
+      - name: Validate dashboard references
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('setup/dashboards/executive-operational-dashboards.ndjson')
+          objects = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+          ids = {(item['type'], item['id']) for item in objects}
+          missing = []
+
+          for item in objects:
+              if item.get('type') != 'dashboard':
+                  continue
+              panels = json.loads(item['attributes']['panelsJSON'])
+              references = {ref['name']: (ref['type'], ref['id']) for ref in item.get('references', [])}
+              for panel in panels:
+                  ref = references.get(panel.get('panelRefName'))
+                  if ref not in ids:
+                      missing.append((item['id'], panel.get('panelRefName'), ref))
+
+          if missing:
+              raise SystemExit(f'Missing dashboard references: {missing}')
+          print(f'Validated {len(objects)} saved objects')
+          PY
+
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose-podman.yml config --quiet

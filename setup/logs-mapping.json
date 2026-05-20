@@ -1,0 +1,28 @@
+{
+  "index_patterns": ["logs-*"],
+  "template": {
+    "mappings": {
+      "properties": {
+        "source": {
+          "properties": {
+            "geo": {
+              "properties": {
+                "location": { "type": "geo_point" }
+              }
+            }
+          }
+        },
+        "destination": {
+          "properties": {
+            "geo": {
+              "properties": {
+                "location": { "type": "geo_point" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "priority": 500
+}

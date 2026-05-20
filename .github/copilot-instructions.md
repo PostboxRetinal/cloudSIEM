@@ -5,7 +5,7 @@ applyTo: "**"
 # CloudSIEM Copilot Instructions
 
 ## Project scope
-- This repository is an academic SIEM project built around `Elasticsearch`, `Logstash`, `Kibana`, `Filebeat` and/or `Metricbeat`, `Docker Compose`, Python log generators, and optional `Wazuh`.
+- This repository is an academic SIEM project built around `Elasticsearch`, `Logstash`, `Kibana`, `Filebeat`, `Docker Compose` and Python log generators.
 - Follow the project scope, requirements, deliverables, and acceptance criteria defined in [`README.md`](../README.md).
 
 ## Source of truth
@@ -14,9 +14,15 @@ applyTo: "**"
 
 ## Communication style
 - Use clear, direct, and concise language.
-- Do not use emojis.
+- Do not use emojis under any circumstance.
 - Prefer factual statements over promotional or decorative wording.
 - Keep explanations practical and focused on what exists, what is missing, and what should be implemented next.
+
+## Coding approach
+- Think before coding: state assumptions explicitly. If something is unclear or multiple interpretations exist, ask instead of guessing.
+- Keep solutions minimal: implement only what was requested. Avoid speculative abstractions, configurability, or error handling for impossible scenarios.
+- Make surgical changes: touch only what is necessary, match existing style, and do not refactor unrelated code or comments. Clean up only unused imports, variables, or functions created by your own changes.
+- Be goal-driven: for multi-step work, outline a brief plan and define how each step will be verified.
 
 ## Documentation rules
 - Write project documentation in Spanish.

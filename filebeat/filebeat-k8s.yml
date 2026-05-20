@@ -1,0 +1,102 @@
+# =============================================================================
+# Filebeat — Configuración para DaemonSet de Kubernetes
+# Se despliega como pod en cada nodo del cluster
+# =============================================================================
+
+filebeat.inputs:
+
+  # ─── Logs de todos los contenedores del nodo ──────────────────────────────
+  - type: filestream
+    id: k8s-all-containers
+    enabled: true
+    paths:
+      - /var/log/containers/*.log
+    prospector.scanner.symlinks: true
+    fields:
+      event.module:   kubernetes
+      event.kind:     event
+    fields_under_root: true
+    parsers:
+      - container:
+          stream: all
+
+  # ─── Logs de componentes del plano de control ────────────────────────────
+  - type: filestream
+    id: k8s-control-plane
+    enabled: true
+    paths:
+      - /var/log/kubernetes/*.log
+      - /var/log/pods/kube-system_*/*/*.log
+    fields:
+      event.dataset:  kubernetes.audit
+      event.module:   kubernetes
+      event.kind:     event
+      event.category: host
+    fields_under_root: true
+    tags: ["kubernetes", "control-plane"]
+
+# ─── Procesadores Kubernetes ──────────────────────────────────────────────────
+processors:
+  - add_kubernetes_metadata:
+      host:       ${NODE_NAME}
+      in_cluster: true
+      default_indexers.enabled: true
+      default_matchers.enabled: true
+      matchers:
+        - logs_path:
+            logs_path: /var/log/containers/
+
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+
+  - decode_json_fields:
+      fields:       ["message"]
+      target:       ""
+      overwrite_keys: true
+      add_error_key:  true
+      max_depth:    2
+
+  - add_host_metadata:
+      netinfo.enabled: true
+
+  - add_fields:
+      target: ecs
+      fields:
+        version: "8.0"
+
+  # Mapear namespace a event.category
+  - script:
+      lang: javascript
+      id:   k8s-namespace-classifier
+      source: >
+        function process(event) {
+          var ns = event.Get("kubernetes.namespace") || "";
+          if (ns === "kube-system") {
+            event.Put("event.category", "host");
+            event.Put("event.dataset",  "kubernetes.system");
+          } else if (ns.indexOf("monitoring") !== -1) {
+            event.Put("event.category", "host");
+            event.Put("event.dataset",  "kubernetes.monitoring");
+          } else {
+            event.Put("event.category", "host");
+            event.Put("event.dataset",  "kubernetes.container");
+          }
+          event.Put("orchestrator.type", "kubernetes");
+          return event;
+        }
+
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "log.offset"]
+      ignore_missing: true
+
+output.logstash:
+  hosts: ["${LOGSTASH_HOST:logstash:5044}"]
+  worker: 2
+
+setup.kibana:
+  host: "${KIBANA_HOST:https://kibana:5601}"
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
+
+logging.level: warning
+logging.to_files: false  # En k8s los logs van a stdout

@@ -1,0 +1,71 @@
+{
+  "id": "siem-rule-sensitive-paths",
+  "name": "SIEM - Acceso a Rutas Web Sensibles",
+  "description": "Detecta peticiones HTTP a rutas críticas de la aplicación: paneles de administración, archivos de configuración, credenciales, herramientas de base de datos y endpoints internos. El pipeline de Logstash enriquece estos eventos con siem.sensitive_path=true. Cualquier acceso — exitoso o fallido — debe investigarse.",
+  "risk_score": 73,
+  "severity": "high",
+  "enabled": true,
+  "type": "query",
+  "query": "event.dataset:\"nginx.access\" AND siem.sensitive_path:true",
+  "language": "kuery",
+  "index": ["logs-nginx*"],
+  "from": "now-5m",
+  "interval": "1m",
+  "max_signals": 200,
+  "tags": [
+    "SIEM",
+    "Sensitive Paths",
+    "Web Attack",
+    "T1190",
+    "Initial Access"
+  ],
+  "threat": [
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0001",
+        "name": "Initial Access",
+        "reference": "https://attack.mitre.org/tactics/TA0001/"
+      },
+      "technique": [
+        {
+          "id": "T1190",
+          "name": "Exploit Public-Facing Application",
+          "reference": "https://attack.mitre.org/techniques/T1190/"
+        }
+      ]
+    },
+    {
+      "framework": "MITRE ATT&CK",
+      "tactic": {
+        "id": "TA0006",
+        "name": "Credential Access",
+        "reference": "https://attack.mitre.org/tactics/TA0006/"
+      },
+      "technique": [
+        {
+          "id": "T1552",
+          "name": "Unsecured Credentials",
+          "reference": "https://attack.mitre.org/techniques/T1552/",
+          "subtechnique": [
+            {
+              "id": "T1552.001",
+              "name": "Credentials In Files",
+              "reference": "https://attack.mitre.org/techniques/T1552/001/"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "note": "## Rutas monitoreadas\n/admin, /wp-admin, /phpmyadmin, /.env, /config, /backup, /.git, /etc/passwd, /proc/, /server-status, /actuator, /api/admin\n\n## Investigación\n1. Revisar `http.response.status_code` — un 200 es crítico (acceso exitoso)\n2. Revisar `source.ip` y `source.geo` — IP externa accediendo a /admin es señal de alarma\n3. Verificar `user_agent.original` — sqlmap, nikto, curl indican herramienta automatizada\n4. Si status 200 en /.env o /config: asumir credenciales comprometidas y rotar inmediatamente\n\n## Contención por severidad\n- Status 200 en ruta crítica → respuesta de incidente inmediata\n- Status 403/404 desde IP externa → monitorear y posiblemente bloquear\n- Status 403 desde IP interna → investigar usuario\n\n## Agregar rutas\nModificar regex en 03-filter-nginx.conf bloque 'Detección de rutas sensibles'",
+  "false_positives": [
+    "Administradores accediendo a /admin desde IPs internas conocidas",
+    "Health checks de Kubernetes que consultan /actuator/health",
+    "Scans de seguridad internos programados"
+  ],
+  "author": ["Equipo SIEM - Proyecto 8"],
+  "license": "Elastic License v2",
+  "version": 1
+}

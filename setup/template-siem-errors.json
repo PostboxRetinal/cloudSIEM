@@ -1,0 +1,19 @@
+{
+  "index_patterns": ["logs-errors-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "siem-logs-policy",
+      "index.lifecycle.rollover_alias": "logs-errors",
+      "index.number_of_shards": 1,
+      "index.number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "error.type": { "type": "keyword" },
+        "error.message": { "type": "text" }
+      }
+    }
+  },
+  "priority": 200
+}

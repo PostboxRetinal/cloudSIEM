@@ -1,0 +1,291 @@
+# =============================================================================
+# Filebeat — Configuración principal SIEM
+# Fuentes: syslog, nginx/apache, auth.log, Kubernetes (Docker containers)
+# Mapeo: Elastic Common Schema (ECS) 8.x
+# =============================================================================
+
+filebeat.inputs:
+
+  # ─── 1. SYSLOG del sistema ─────────────────────────────────────────────────
+  - type: filestream
+    id: syslog-system
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/messages
+      - /var/log/kern.log
+    encoding: utf-8
+    # ECS fields
+    fields:
+      event.dataset: system.syslog
+      event.module:  system
+      event.kind:    event
+      event.category: host
+    fields_under_root: true
+    # Multiline: una entrada de log puede abarcar varias líneas
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\w{3}\s{1,2}\d{1,2}\s\d{2}:\d{2}:\d{2}'
+          negate: true
+          match: after
+    # Procesadores específicos de esta fuente
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            log.type: syslog
+      - convert:
+          fields:
+            - {from: "process.pid", type: integer}
+          ignore_missing: true
+          fail_on_error:  false
+
+  # ─── 2. AUTH LOG (SSH, sudo, PAM, cron) ────────────────────────────────────
+  - type: filestream
+    id: auth-log
+    enabled: true
+    paths:
+      - /var/log/auth.log
+      - /var/log/secure          # RHEL/CentOS
+      - /var/log/audit/audit.log # auditd (opcional)
+    encoding: utf-8
+    fields:
+      event.dataset:  system.auth
+      event.module:   system
+      event.kind:     event
+      event.category: authentication
+    fields_under_root: true
+    # Tags para identificación rápida en Logstash
+    tags: ["auth", "security"]
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            log.type: auth
+      # Extraer acción básica del mensaje antes de enviarlo a Logstash
+      - script:
+          lang: javascript
+          id:   auth-classifier
+          source: >
+            function process(event) {
+              var msg = event.Get("message") || "";
+              if (msg.indexOf("Failed password") !== -1 ||
+                  msg.indexOf("authentication failure") !== -1) {
+                event.Put("event.outcome", "failure");
+                event.Put("event.action",  "authentication_failure");
+                event.AppendTo("tags", "auth_failure");
+              } else if (msg.indexOf("Accepted") !== -1 ||
+                         msg.indexOf("session opened") !== -1) {
+                event.Put("event.outcome", "success");
+                event.Put("event.action",  "authentication_success");
+                event.AppendTo("tags", "auth_success");
+              } else if (msg.indexOf("Invalid user") !== -1 ||
+                         msg.indexOf("illegal user") !== -1) {
+                event.Put("event.outcome", "failure");
+                event.Put("event.action",  "invalid_user");
+                event.AppendTo("tags", "auth_failure");
+              } else if (msg.indexOf("COMMAND") !== -1) {
+                event.Put("event.action",  "sudo_command");
+                event.AppendTo("tags", "privilege_escalation");
+              }
+              return event;
+            }
+
+  # ─── 3. NGINX — Access log ─────────────────────────────────────────────────
+  - type: filestream
+    id: nginx-access
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+      - /var/log/nginx/*access*.log
+      - /var/log/apache2/access.log
+    encoding: utf-8
+    fields:
+      event.dataset:  nginx.access
+      event.module:   nginx
+      event.kind:     event
+      event.category: web
+      event.type:     access
+    fields_under_root: true
+    tags: ["nginx", "web", "access"]
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            log.type: nginx_access
+      # Clasificar por código de respuesta
+      - script:
+          lang: javascript
+          id:   http-classifier
+          source: >
+            function process(event) {
+              var msg = event.Get("message") || "";
+              var m   = msg.match(/" (\d{3}) /);
+              if (m) {
+                var code = parseInt(m[1]);
+                event.Put("http.response.status_code", code);
+                if (code >= 500)      { event.Put("event.type", "error"); }
+                else if (code >= 400) { event.Put("event.type", "denied"); }
+                else                  { event.Put("event.type", "allowed"); }
+              }
+              return event;
+            }
+
+  # ─── 4. NGINX — Error log ──────────────────────────────────────────────────
+  - type: filestream
+    id: nginx-error
+    enabled: true
+    paths:
+      - /var/log/nginx/error.log
+      - /var/log/nginx/*error*.log
+      - /var/log/apache2/error.log
+    encoding: utf-8
+    fields:
+      event.dataset:  nginx.error
+      event.module:   nginx
+      event.kind:     event
+      event.category: web
+      event.type:     error
+    fields_under_root: true
+    tags: ["nginx", "web", "error"]
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\d{4}/\d{2}/\d{2}'
+          negate: true
+          match: after
+
+  # ─── 5. KUBERNETES — Containers via Docker socket ──────────────────────────
+  - type: filestream
+    id: k8s-containers
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    fields:
+      event.dataset:  kubernetes.container
+      event.module:   kubernetes
+      event.kind:     event
+      event.category: host
+    fields_under_root: true
+    tags: ["kubernetes", "container"]
+    parsers:
+      - container:
+          stream: all   # stdout + stderr
+    processors:
+      # Enriquecer con metadata de Kubernetes (requiere acceso al API server)
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME:localhost}
+          in_cluster: false
+          kube_config: ${KUBECONFIG:/etc/filebeat/kubeconfig}
+          default_indexers.enabled: true
+          default_matchers.enabled: true
+          matchers:
+            - logs_path:
+                logs_path: /var/lib/docker/containers/
+      # Enriquecer con metadata de Docker
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_fields:
+            - "container.id"
+      # Mapear labels de k8s a campos ECS
+      - script:
+          lang: javascript
+          id:   k8s-ecs-mapper
+          source: >
+            function process(event) {
+              var pod  = event.Get("kubernetes.pod.name");
+              var ns   = event.Get("kubernetes.namespace");
+              var node = event.Get("kubernetes.node.name");
+              var ctr  = event.Get("kubernetes.container.name");
+              if (pod)  event.Put("orchestrator.resource.name", pod);
+              if (ns)   event.Put("orchestrator.namespace", ns);
+              if (node) event.Put("orchestrator.cluster.name", node);
+              if (ctr)  event.Put("container.name", ctr);
+              event.Put("orchestrator.type", "kubernetes");
+              return event;
+            }
+
+  # ─── 6. KUBERNETES — Simulated container logs ──────────────────────────────
+  - type: filestream
+    id: k8s-simulated-containers
+    enabled: true
+    paths:
+      - /var/log/containers/*.log
+    encoding: utf-8
+    fields:
+      event.dataset:  kubernetes.container
+      event.module:   kubernetes
+      event.kind:     event
+      event.category: host
+    fields_under_root: true
+    tags: ["kubernetes", "container", "simulated"]
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          message_key: message
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            log.type: k8s_container
+      - script:
+          lang: javascript
+          id:   k8s-simulated-ecs-mapper
+          source: >
+            function process(event) {
+              var pod = event.Get("kubernetes.pod.name");
+              var ns  = event.Get("kubernetes.namespace");
+              var ctr = event.Get("kubernetes.container.name");
+              if (pod) event.Put("orchestrator.resource.name", pod);
+              if (ns)  event.Put("orchestrator.namespace", ns);
+              if (ctr) event.Put("container.name", ctr);
+              event.Put("orchestrator.type", "kubernetes");
+              return event;
+            }
+
+# ─── Módulos de Filebeat ─────────────────────────────────────────────────────
+filebeat.modules: []
+
+# ─── Output: Logstash (enriquecimiento y routing) ────────────────────────────
+output.logstash:
+  hosts:
+    - "${LOGSTASH_HOST:logstash:5044}"
+  worker:           2
+  bulk_max_size:    2048
+  compression_level: 3
+
+# ─── Setup (Kibana dashboards + ILM) ─────────────────────────────────────────
+setup.kibana:
+  host: "${KIBANA_HOST:https://kibana:5601}"
+  username: "${ELASTIC_USER:elastic}"
+  password: "${ELASTIC_PASSWORD}"
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
+
+setup.ilm.enabled:        false
+setup.dashboards.enabled: false
+
+# ─── Template de índice ───────────────────────────────────────────────────────
+setup.template.enabled:       false
+setup.template.name:          "filebeat"
+setup.template.pattern:       "filebeat-*"
+setup.template.overwrite:     true
+
+# ─── Logging de Filebeat ──────────────────────────────────────────────────────
+logging.level:    warning
+logging.to_files: true
+logging.files:
+  path:      /var/log/filebeat
+  name:      filebeat
+  keepfiles: 7
+  permissions: 0600
+
+# ─── Métricas internas (monitoring) ──────────────────────────────────────────
+monitoring.enabled: false
+
+# ─── HTTP endpoint (healthcheck) ─────────────────────────────────────────────
+http.enabled: true
+http.host:    "0.0.0.0"
+http.port:    5066
